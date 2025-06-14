@@ -9,7 +9,186 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      chat_rooms: {
+        Row: {
+          created_at: string | null
+          id: string
+          user1_id: string | null
+          user2_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          user1_id?: string | null
+          user2_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          user1_id?: string | null
+          user2_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_user1_id_fkey"
+            columns: ["user1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_user2_id_fkey"
+            columns: ["user2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          compatibility_description: string | null
+          created_at: string | null
+          id: string
+          match_score: number | null
+          status: Database["public"]["Enums"]["match_status"] | null
+          target_user_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          compatibility_description?: string | null
+          created_at?: string | null
+          id?: string
+          match_score?: number | null
+          status?: Database["public"]["Enums"]["match_status"] | null
+          target_user_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          compatibility_description?: string | null
+          created_at?: string | null
+          id?: string
+          match_score?: number | null
+          status?: Database["public"]["Enums"]["match_status"] | null
+          target_user_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          chat_room_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          sender_id: string | null
+        }
+        Insert: {
+          chat_room_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          sender_id?: string | null
+        }
+        Update: {
+          chat_room_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          sender_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          bio: string | null
+          created_at: string | null
+          current_location_lat: number | null
+          current_location_lng: number | null
+          date_of_birth: string
+          dating_preference: Database["public"]["Enums"]["dating_preference"]
+          email: string | null
+          id: string
+          is_onboarding_complete: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          place_of_birth: string
+          profile_images: string[] | null
+          sexual_orientation: Database["public"]["Enums"]["sexual_orientation"]
+          time_of_birth: string
+          updated_at: string | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string | null
+          current_location_lat?: number | null
+          current_location_lng?: number | null
+          date_of_birth: string
+          dating_preference: Database["public"]["Enums"]["dating_preference"]
+          email?: string | null
+          id: string
+          is_onboarding_complete?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          place_of_birth: string
+          profile_images?: string[] | null
+          sexual_orientation: Database["public"]["Enums"]["sexual_orientation"]
+          time_of_birth: string
+          updated_at?: string | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string | null
+          current_location_lat?: number | null
+          current_location_lng?: number | null
+          date_of_birth?: string
+          dating_preference?: Database["public"]["Enums"]["dating_preference"]
+          email?: string | null
+          id?: string
+          is_onboarding_complete?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          place_of_birth?: string
+          profile_images?: string[] | null
+          sexual_orientation?: Database["public"]["Enums"]["sexual_orientation"]
+          time_of_birth?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +197,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      dating_preference: "men" | "women" | "everyone"
+      match_status: "pending" | "matched" | "rejected"
+      sexual_orientation:
+        | "straight"
+        | "lesbian"
+        | "gay"
+        | "bisexual"
+        | "pansexual"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +320,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      dating_preference: ["men", "women", "everyone"],
+      match_status: ["pending", "matched", "rejected"],
+      sexual_orientation: [
+        "straight",
+        "lesbian",
+        "gay",
+        "bisexual",
+        "pansexual",
+        "other",
+      ],
+    },
   },
 } as const
