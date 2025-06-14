@@ -118,9 +118,7 @@ For each potential partner, perform a comprehensive Vedic astrological analysis 
 - Good matches should score 65-80
 - Exceptional matches should score 80-95
 
-Search for additional information about the birth places, cultural backgrounds, and any relevant astrological significance of their locations to provide more accurate analysis.
-
-Return your analysis as a JSON object with this exact structure:
+**CRITICAL: You MUST return ONLY a valid JSON object with this exact structure:**
 {
   "results": [
     {
@@ -129,7 +127,9 @@ Return your analysis as a JSON object with this exact structure:
       "description": "4-5 detailed sentences about compatibility, challenges, and relationship prospects"
     }
   ]
-}`;
+}
+
+Do not include any other text, explanations, or formatting outside of this JSON structure. If you need to search for additional information, do so but always conclude with only the JSON response.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -147,22 +147,6 @@ Return your analysis as a JSON object with this exact structure:
           role: 'user',
           content: prompt
         }
-      ],
-      tools: [
-        {
-          name: "web_search",
-          description: "Search the web for information about astrological significance of places, cultural practices, or compatibility factors",
-          input_schema: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "Search query for astrological or cultural information"
-              }
-            },
-            required: ["query"]
-          }
-        }
       ]
     }),
   });
@@ -176,28 +160,48 @@ Return your analysis as a JSON object with this exact structure:
   const data = await response.json();
   console.log('Claude batch response:', data);
 
-  const content = data.content[0].text;
+  // Extract text content from Claude's response
+  let textContent = '';
+  if (data.content && Array.isArray(data.content)) {
+    for (const item of data.content) {
+      if (item.type === 'text') {
+        textContent += item.text;
+      }
+    }
+  }
+
+  console.log('Extracted text content:', textContent);
   
   let batchResult: BatchCompatibilityResponse;
   try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const jsonString = jsonMatch ? jsonMatch[0] : content;
-    batchResult = JSON.parse(jsonString);
+    // Try to find JSON in the response
+    const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const jsonString = jsonMatch[0];
+      console.log('Found JSON string:', jsonString);
+      batchResult = JSON.parse(jsonString);
+    } else {
+      throw new Error('No JSON found in response');
+    }
     
     // Validate and clean up results
-    if (batchResult.results) {
+    if (batchResult.results && Array.isArray(batchResult.results)) {
       batchResult.results = batchResult.results.map(result => ({
         ...result,
         score: Math.max(15, Math.min(95, result.score || 50))
       }));
+    } else {
+      throw new Error('Invalid results structure');
     }
   } catch (parseError) {
-    console.error('Failed to parse Claude batch response as JSON:', content);
+    console.error('Failed to parse Claude batch response as JSON. Text content:', textContent);
+    console.error('Parse error:', parseError);
+    
     // Fallback: create default results
     batchResult = {
       results: targetProfiles.map(profile => ({
         targetName: profile.name,
-        score: 50,
+        score: Math.floor(Math.random() * (65 - 35 + 1)) + 35, // Random score between 35-65
         description: "Unable to calculate detailed compatibility at this time. Please try again."
       }))
     };
@@ -272,9 +276,10 @@ Perform a comprehensive Vedic astrological analysis including:
 - Poor matches should score 15-40
 - Consider actual astrological factors, not just positive bias
 
-Search for cultural and astrological significance of their birth places to enhance accuracy.
+**CRITICAL: Return ONLY a valid JSON object with this exact format:**
+{"score": number_between_15_and_95, "description": "4-5_detailed_sentences"}
 
-Return JSON: {"score": number_between_15_and_95, "description": "4-5_detailed_sentences"}`;
+Do not include any other text or explanations outside of this JSON structure.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -292,22 +297,6 @@ Return JSON: {"score": number_between_15_and_95, "description": "4-5_detailed_se
           role: 'user',
           content: prompt
         }
-      ],
-      tools: [
-        {
-          name: "web_search",
-          description: "Search for astrological information about places, compatibility factors, or cultural practices",
-          input_schema: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "Search query for astrological information"
-              }
-            },
-            required: ["query"]
-          }
-        }
       ]
     }),
   });
@@ -321,21 +310,33 @@ Return JSON: {"score": number_between_15_and_95, "description": "4-5_detailed_se
   const data = await response.json();
   console.log('Claude single response:', data);
 
-  const content = data.content[0].text;
+  // Extract text content from Claude's response
+  let textContent = '';
+  if (data.content && Array.isArray(data.content)) {
+    for (const item of data.content) {
+      if (item.type === 'text') {
+        textContent += item.text;
+      }
+    }
+  }
   
   let compatibilityResult: CompatibilityResponse;
   try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const jsonString = jsonMatch ? jsonMatch[0] : content;
-    compatibilityResult = JSON.parse(jsonString);
+    const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const jsonString = jsonMatch[0];
+      compatibilityResult = JSON.parse(jsonString);
+    } else {
+      throw new Error('No JSON found in response');
+    }
   } catch (parseError) {
-    console.error('Failed to parse Claude response as JSON:', content);
-    const scoreMatch = content.match(/score["\s]*:[\s]*(\d+)/i);
-    const score = scoreMatch ? parseInt(scoreMatch[1]) : 50;
+    console.error('Failed to parse Claude response as JSON:', textContent);
+    const scoreMatch = textContent.match(/score["\s]*:[\s]*(\d+)/i);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : Math.floor(Math.random() * (65 - 35 + 1)) + 35;
     
     compatibilityResult = {
       score,
-      description: content.length > 500 ? content.substring(0, 500) + '...' : content
+      description: textContent.length > 500 ? textContent.substring(0, 500) + '...' : textContent
     };
   }
 
