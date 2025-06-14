@@ -52,6 +52,8 @@ export const useAstrologicalMatching = () => {
   // Cache to prevent duplicate API calls
   const compatibilityCache = useRef<Map<string, CompatibilityResponse>>(new Map());
   const isProcessingRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentProfile = profiles[currentIndex] || null;
 
@@ -124,9 +126,35 @@ export const useAstrologicalMatching = () => {
     }
   };
 
+  const debouncedFetchMore = useCallback(() => {
+    // Clear any existing timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
+    // Set a new timeout to prevent rapid successive calls
+    fetchTimeoutRef.current = setTimeout(() => {
+      const now = Date.now();
+      const timeSinceLastFetch = now - lastFetchTimeRef.current;
+      
+      // Only fetch if it's been at least 2 seconds since last fetch
+      if (timeSinceLastFetch >= 2000 && !isProcessingRef.current && hasEnoughUsers) {
+        console.log('Debounced fetch triggered - fetching more profiles...');
+        fetchAndRankProfiles(false);
+      }
+    }, 1000); // 1 second debounce
+  }, [hasEnoughUsers]);
+
   const fetchAndRankProfiles = useCallback(async (isRefetch = false) => {
     if (!user?.id || !profile || isProcessingRef.current) {
       console.log('Skipping fetch - missing requirements or already processing');
+      return;
+    }
+
+    // Prevent rapid successive calls
+    const now = Date.now();
+    if (!isRefetch && (now - lastFetchTimeRef.current) < 2000) {
+      console.log('Skipping fetch - too soon since last fetch');
       return;
     }
 
@@ -138,10 +166,13 @@ export const useAstrologicalMatching = () => {
 
     console.log('Starting fetchAndRankProfiles for user:', user.id, 'isRefetch:', isRefetch);
     
-    // Debug current interactions
-    await debugProfileInteractions();
+    // Debug current interactions only on initial fetch
+    if (isRefetch) {
+      await debugProfileInteractions();
+    }
     
     isProcessingRef.current = true;
+    lastFetchTimeRef.current = now;
     setLoading(true);
     setError(null);
     
@@ -312,7 +343,7 @@ export const useAstrologicalMatching = () => {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
 
-      // Check if we need to fetch more profiles (when 70% of profiles are consumed)
+      // Check if we need to fetch more profiles (when 80% of profiles are consumed)
       const remainingProfiles = profiles.length - nextIndex;
       const totalProfiles = profiles.length;
       
@@ -320,16 +351,17 @@ export const useAstrologicalMatching = () => {
         const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
         console.log(`Remaining profiles: ${remainingProfiles}/${totalProfiles} (${percentageRemaining.toFixed(1)}%)`);
 
-        if (percentageRemaining <= 30 && hasEnoughUsers) {
-          console.log('Reached 70% threshold, fetching more profiles...');
-          fetchAndRankProfiles(false); // Don't replace, append
+        // Use debounced fetch to prevent rapid successive calls
+        if (percentageRemaining <= 20 && hasEnoughUsers) {
+          console.log('Reached 80% threshold, scheduling debounced fetch...');
+          debouncedFetchMore();
         }
       }
 
     } catch (err) {
       console.error('Error handling like:', err);
     }
-  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles, hasEnoughUsers]);
+  }, [user?.id, currentProfile, profiles.length, currentIndex, debouncedFetchMore, hasEnoughUsers]);
 
   const handlePass = useCallback(async () => {
     if (!user?.id || !currentProfile) return;
@@ -349,7 +381,7 @@ export const useAstrologicalMatching = () => {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
 
-      // Check if we need to fetch more profiles (when 70% of profiles are consumed)
+      // Check if we need to fetch more profiles (when 80% of profiles are consumed)
       const remainingProfiles = profiles.length - nextIndex;
       const totalProfiles = profiles.length;
       
@@ -357,16 +389,17 @@ export const useAstrologicalMatching = () => {
         const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
         console.log(`Remaining profiles: ${remainingProfiles}/${totalProfiles} (${percentageRemaining.toFixed(1)}%)`);
 
-        if (percentageRemaining <= 30 && hasEnoughUsers) {
-          console.log('Reached 70% threshold, fetching more profiles...');
-          fetchAndRankProfiles(false); // Don't replace, append
+        // Use debounced fetch to prevent rapid successive calls
+        if (percentageRemaining <= 20 && hasEnoughUsers) {
+          console.log('Reached 80% threshold, scheduling debounced fetch...');
+          debouncedFetchMore();
         }
       }
 
     } catch (err) {
       console.error('Error handling pass:', err);
     }
-  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles, hasEnoughUsers]);
+  }, [user?.id, currentProfile, profiles.length, currentIndex, debouncedFetchMore, hasEnoughUsers]);
 
   // Initial fetch when component mounts
   useEffect(() => {
@@ -374,6 +407,15 @@ export const useAstrologicalMatching = () => {
       fetchAndRankProfiles(true); // Initial fetch, replace profiles
     }
   }, [user?.id, profile, fetchAndRankProfiles]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     currentProfile,
