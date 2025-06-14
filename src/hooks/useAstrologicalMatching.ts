@@ -22,6 +22,14 @@ interface CompatibilityResponse {
   description: string;
 }
 
+interface BatchCompatibilityResponse {
+  results: Array<{
+    targetName: string;
+    score: number;
+    description: string;
+  }>;
+}
+
 interface RankedProfile extends ProfileData {
   compatibilityScore: number;
   compatibilityDescription: string;
@@ -85,7 +93,7 @@ export const useAstrologicalMatching = () => {
     try {
       console.log('Fetching unseen profiles...');
       
-      // Fetch unseen profiles - cast the result to our expected type
+      // Fetch unseen profiles
       const { data: unseenProfiles, error: fetchError } = await supabase.rpc(
         'get_unseen_profiles', 
         { 
@@ -111,7 +119,7 @@ export const useAstrologicalMatching = () => {
         setHasEnoughUsers(false);
       }
 
-      console.log(`Found ${unseenProfiles.length} profiles, calculating compatibility...`);
+      console.log(`Found ${unseenProfiles.length} profiles, calculating compatibility in batch...`);
       setProcessingCount(unseenProfiles.length);
 
       // Validate current user profile before processing
@@ -123,95 +131,80 @@ export const useAstrologicalMatching = () => {
         return;
       }
 
-      // Calculate compatibility for each profile
-      const rankedProfiles: RankedProfile[] = [];
-      
-      for (const unseenProfile of unseenProfiles) {
-        try {
-          // Check if the profile has complete birth data
-          if (!unseenProfile.date_of_birth || !unseenProfile.time_of_birth || !unseenProfile.place_of_birth) {
-            console.log(`Skipping profile ${unseenProfile.name} - incomplete birth data`);
-            continue;
-          }
-
-          // Validate target profile data
-          try {
-            validateProfileData(unseenProfile, `Target profile ${unseenProfile.name}`);
-          } catch (validationError) {
-            console.error(`Validation failed for ${unseenProfile.name}:`, validationError);
-            continue;
-          }
-
-          // Create cache key to avoid duplicate API calls
-          const cacheKey = `${user.id}-${unseenProfile.id}`;
-          let compatibility: CompatibilityResponse;
-
-          if (compatibilityCache.current.has(cacheKey)) {
-            console.log(`Using cached compatibility for ${unseenProfile.name}`);
-            compatibility = compatibilityCache.current.get(cacheKey)!;
-          } else {
-            console.log(`Calculating compatibility for ${unseenProfile.name}...`);
-            
-            const requestPayload = {
-              userProfile: {
-                name: profile.name,
-                dateOfBirth: profile.dateOfBirth,
-                timeOfBirth: profile.timeOfBirth,
-                placeOfBirth: profile.placeOfBirth
-              },
-              targetProfile: {
-                name: unseenProfile.name,
-                dateOfBirth: unseenProfile.date_of_birth,
-                timeOfBirth: unseenProfile.time_of_birth,
-                placeOfBirth: unseenProfile.place_of_birth
-              }
-            };
-
-            console.log(`API payload for ${unseenProfile.name}:`, JSON.stringify(requestPayload, null, 2));
-
-            const { data: compatibilityData, error: compatibilityError } = await supabase.functions.invoke(
-              'astrological-compatibility',
-              {
-                body: requestPayload
-              }
-            );
-
-            if (compatibilityError) {
-              console.error(`Compatibility error for ${unseenProfile.name}:`, compatibilityError);
-              // Add with default score if API fails
-              compatibility = {
-                score: 50,
-                description: "Unable to calculate astrological compatibility at the moment."
-              };
-            } else {
-              compatibility = compatibilityData as CompatibilityResponse;
-              // Cache the result
-              compatibilityCache.current.set(cacheKey, compatibility);
-            }
-          }
-
-          rankedProfiles.push({
-            ...unseenProfile,
-            currentCity: unseenProfile.current_city,
-            sexualOrientation: unseenProfile.sexual_orientation,
-            datingPreference: unseenProfile.dating_preference,
-            compatibilityScore: compatibility.score,
-            compatibilityDescription: compatibility.description
-          });
-
-        } catch (profileError) {
-          console.error(`Error processing profile ${unseenProfile.name}:`, profileError);
-          // Add with default score if processing fails
-          rankedProfiles.push({
-            ...unseenProfile,
-            currentCity: unseenProfile.current_city,
-            sexualOrientation: unseenProfile.sexual_orientation,
-            datingPreference: unseenProfile.dating_preference,
-            compatibilityScore: 50,
-            compatibilityDescription: "Unable to calculate astrological compatibility at the moment."
-          });
+      // Filter profiles with complete birth data
+      const validProfiles = unseenProfiles.filter(unseenProfile => {
+        if (!unseenProfile.date_of_birth || !unseenProfile.time_of_birth || !unseenProfile.place_of_birth) {
+          console.log(`Skipping profile ${unseenProfile.name} - incomplete birth data`);
+          return false;
         }
+
+        try {
+          validateProfileData(unseenProfile, `Target profile ${unseenProfile.name}`);
+          return true;
+        } catch (validationError) {
+          console.error(`Validation failed for ${unseenProfile.name}:`, validationError);
+          return false;
+        }
+      });
+
+      if (validProfiles.length === 0) {
+        console.log('No valid profiles with complete birth data found');
+        setProfiles([]);
+        setProcessingCount(0);
+        return;
       }
+
+      // Prepare batch compatibility request
+      const userProfileData = {
+        name: profile.name,
+        dateOfBirth: profile.dateOfBirth,
+        timeOfBirth: profile.timeOfBirth,
+        placeOfBirth: profile.placeOfBirth
+      };
+
+      const targetProfiles = validProfiles.map(unseenProfile => ({
+        name: unseenProfile.name,
+        dateOfBirth: unseenProfile.date_of_birth,
+        timeOfBirth: unseenProfile.time_of_birth,
+        placeOfBirth: unseenProfile.place_of_birth
+      }));
+
+      console.log('Sending batch compatibility request for', validProfiles.length, 'profiles');
+
+      // Make batch compatibility request
+      const { data: batchCompatibilityData, error: compatibilityError } = await supabase.functions.invoke(
+        'astrological-compatibility',
+        {
+          body: {
+            userProfile: userProfileData,
+            targetProfiles: targetProfiles
+          }
+        }
+      );
+
+      if (compatibilityError) {
+        console.error('Batch compatibility error:', compatibilityError);
+        throw compatibilityError;
+      }
+
+      const batchResult = batchCompatibilityData as BatchCompatibilityResponse;
+      console.log('Batch compatibility results:', batchResult);
+
+      // Create ranked profiles with compatibility data
+      const rankedProfiles: RankedProfile[] = validProfiles.map((unseenProfile, index) => {
+        const compatibilityResult = batchResult.results?.find(
+          result => result.targetName === unseenProfile.name
+        );
+
+        return {
+          ...unseenProfile,
+          currentCity: unseenProfile.current_city,
+          sexualOrientation: unseenProfile.sexual_orientation,
+          datingPreference: unseenProfile.dating_preference,
+          compatibilityScore: compatibilityResult?.score || 50,
+          compatibilityDescription: compatibilityResult?.description || "Compatibility analysis unavailable."
+        };
+      });
 
       // Sort by compatibility score (highest first)
       rankedProfiles.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
