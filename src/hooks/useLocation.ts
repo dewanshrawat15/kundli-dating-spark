@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
 
@@ -23,34 +23,40 @@ export const useLocation = () => {
 
   const getCityFromCoordinates = async (latitude: number, longitude: number): Promise<string> => {
     try {
-      // Using OpenStreetMap Nominatim API which is more reliable and free
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+      // Try multiple geocoding services for better reliability
+      const services = [
+        // BigDataCloud (more reliable for CORS)
         {
-          headers: {
-            'User-Agent': 'DatingApp/1.0'
-          }
+          url: `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
+          parse: (data: any) => data.city || data.locality || data.principalSubdivision || null
+        },
+        // Backup: ipapi.co (IP-based, less accurate but works)
+        {
+          url: `https://ipapi.co/json/`,
+          parse: (data: any) => data.city || null
         }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch location data');
+      ];
+
+      for (const service of services) {
+        try {
+          const response = await fetch(service.url);
+          if (response.ok) {
+            const data = await response.json();
+            const city = service.parse(data);
+            if (city && city !== 'Unknown') {
+              return city;
+            }
+          }
+        } catch (serviceError) {
+          console.log('Service failed, trying next:', serviceError);
+          continue;
+        }
       }
-      
-      const data = await response.json();
-      
-      // Extract city from various possible fields
-      const city = data.address?.city || 
-                   data.address?.town || 
-                   data.address?.village || 
-                   data.address?.municipality ||
-                   data.address?.county ||
-                   'Unknown City';
-      
-      return city;
+
+      // Final fallback: use coordinates
+      return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
     } catch (error) {
       console.error('Error getting city from coordinates:', error);
-      // Fallback: try a simpler approach with just coordinates
       return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
     }
   };
@@ -67,14 +73,12 @@ export const useLocation = () => {
       if (permission.state === 'granted') {
         return true;
       } else if (permission.state === 'prompt') {
-        // Will be handled by getCurrentPosition which triggers the permission prompt
         return true;
       } else {
         setState(prev => ({ ...prev, hasPermission: false, error: 'Location permission denied' }));
         return false;
       }
     } catch (error) {
-      // Fallback for browsers that don't support permissions API
       return true;
     }
   };
@@ -140,14 +144,14 @@ export const useLocation = () => {
         },
         {
           enableHighAccuracy: true,
-          timeout: 15000, // Increased timeout
-          maximumAge: 300000, // 5 minutes
+          timeout: 15000,
+          maximumAge: 300000,
         }
       );
     });
   };
 
-  const updateUserLocation = async () => {
+  const updateUserLocation = useCallback(async () => {
     if (!user || !profile) return;
 
     const locationData = await getCurrentLocation();
@@ -155,19 +159,16 @@ export const useLocation = () => {
 
     const { city, lat, lng } = locationData;
     
-    // Check if city has changed
     const previousCity = profile.current_city;
     const cityChanged = previousCity !== city;
 
     try {
-      // Update profile with new location data
       await updateProfile({
         current_city: city,
         currentLocationLat: lat,
         currentLocationLng: lng,
       });
 
-      // If city changed, refetch profile to ensure everything is up to date
       if (cityChanged && user.id) {
         console.log('City changed from', previousCity, 'to', city, '- refetching profile');
         await fetchProfile(user.id);
@@ -176,15 +177,7 @@ export const useLocation = () => {
       console.error('Failed to update user location:', error);
       setState(prev => ({ ...prev, error: 'Failed to update location' }));
     }
-  };
-
-  // Auto-update location when user logs in
-  useEffect(() => {
-    if (user && profile && !profile.current_city) {
-      console.log('User logged in without current_city - requesting location');
-      updateUserLocation();
-    }
-  }, [user, profile]);
+  }, [user, profile, updateProfile, fetchProfile, getCurrentLocation]);
 
   return {
     ...state,

@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +15,7 @@ const Home = () => {
   const { currentProfile, loading, hasEnoughUsers, handleLike, handlePass } = useProfileMatching();
   const { isLoading: locationLoading, error: locationError, updateUserLocation } = useLocation();
   const navigate = useNavigate();
+  const locationUpdateAttempted = useRef(false);
 
   useEffect(() => {
     if (!user) {
@@ -23,13 +23,11 @@ const Home = () => {
       return;
     }
 
-    // Fetch user profile if not already loaded
     if (!profile && user.id) {
       fetchProfile(user.id);
       return;
     }
     
-    // Check if user needs onboarding (has default values or incomplete onboarding)
     if (profile) {
       const hasDefaultValues = 
         !profile.name || 
@@ -46,15 +44,15 @@ const Home = () => {
         return;
       }
 
-      // If user doesn't have current_city, request location
-      if (!profile.current_city) {
+      // Only request location once per session if not set
+      if (!profile.current_city && !locationUpdateAttempted.current) {
         console.log('Profile loaded but no current_city - requesting location');
+        locationUpdateAttempted.current = true;
         updateUserLocation();
       }
     }
   }, [user, profile, navigate, fetchProfile, updateUserLocation]);
 
-  // Show location error if any
   useEffect(() => {
     if (locationError) {
       toast({
@@ -83,8 +81,8 @@ const Home = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-white text-xl flex items-center gap-3">
-          <Clock className="h-6 w-6 animate-spin" style={{
-            animation: 'spin 1s linear infinite'
+          <Clock className="h-6 w-6" style={{
+            animation: 'spin 2s linear infinite'
           }} />
           {locationLoading ? 'Getting your location...' : 'Finding your cosmic matches...'}
         </div>
