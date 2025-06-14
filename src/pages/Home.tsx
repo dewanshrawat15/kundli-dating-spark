@@ -3,16 +3,16 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart, X, Star } from "lucide-react";
+import { Heart, X, Star, MapPin, Users, Clock } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useProfileStore } from "@/store/profileStore";
+import { useProfileMatching } from "@/hooks/useProfileMatching";
 import { toast } from "@/hooks/use-toast";
 
 const Home = () => {
-  const [currentProfile, setCurrentProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
   const { profile, fetchProfile } = useProfileStore();
+  const { currentProfile, loading, hasEnoughUsers, getNextProfile } = useProfileMatching();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,57 +44,74 @@ const Home = () => {
         return;
       }
     }
-
-    // Mock profile for demo
-    setCurrentProfile({
-      id: "demo-user",
-      name: "Sarah Johnson",
-      age: 28,
-      bio: "Yoga instructor who loves stargazing and meditation",
-      images: [],
-      matchScore: 85,
-      compatibility: "Your stars align beautifully! Both of you have strong Venus influences."
-    });
-    setLoading(false);
   }, [user, profile, navigate, fetchProfile]);
 
   const handleLike = () => {
+    if (!currentProfile) return;
+    
     toast({
       title: "It's a match! ⭐",
-      description: "You and Sarah have matched based on your Kundli compatibility!",
+      description: `You and ${currentProfile.name} have matched based on your compatibility!`,
     });
-    // Load next profile
-    setCurrentProfile(null);
-    setTimeout(() => {
-      setCurrentProfile({
-        id: "demo-user-2",
-        name: "Emily Chen",
-        age: 26,
-        bio: "Artist and spiritual seeker, loves exploring ancient wisdom",
-        images: [],
-        matchScore: 92,
-        compatibility: "Exceptional compatibility! Your planetary alignments suggest a deep spiritual connection."
-      });
-    }, 1000);
+    getNextProfile();
   };
 
   const handlePass = () => {
-    // Load next profile
-    setCurrentProfile({
-      id: "demo-user-3",
-      name: "Jessica Williams",
-      age: 30,
-      bio: "Travel blogger who believes in destiny and cosmic connections",
-      images: [],
-      matchScore: 78,
-      compatibility: "Good compatibility with potential for growth and understanding."
-    });
+    getNextProfile();
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-xl">Finding your cosmic matches...</div>
+        <div className="text-white text-xl flex items-center gap-3">
+          <Clock className="h-6 w-6 animate-spin" />
+          Finding your cosmic matches...
+        </div>
+      </div>
+    );
+  }
+
+  // Show waiting state when there aren't enough users
+  if (!hasEnoughUsers) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+        <div className="max-w-sm mx-auto pt-8">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-white mb-2">Discover</h1>
+            <Button 
+              onClick={() => navigate("/matches")}
+              variant="outline" 
+              className="border-white/30 text-white hover:bg-white/20"
+            >
+              View Matches
+            </Button>
+          </div>
+
+          <Card className="bg-white/90 backdrop-blur border-white/20 overflow-hidden shadow-lg">
+            <CardContent className="p-8 text-center">
+              <Users className="h-16 w-16 mx-auto mb-4 text-purple-600" />
+              <h2 className="text-xl font-bold text-gray-900 mb-3">
+                Building Your Community
+              </h2>
+              <p className="text-gray-700 mb-4">
+                We're gathering more cosmic souls in your area! 
+              </p>
+              <div className="bg-purple-100 rounded-lg p-4 mb-4 border border-purple-200">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <MapPin className="h-5 w-5 text-purple-600" />
+                  <span className="text-purple-800 font-medium">Your Area</span>
+                </div>
+                <p className="text-purple-700 text-sm">
+                  We need at least 10 users in your city to start showing matches. 
+                  Invite friends to join and build your local community!
+                </p>
+              </div>
+              <p className="text-gray-600 text-sm">
+                ✨ More people are joining every day. Check back soon!
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -120,15 +137,34 @@ const Home = () => {
             </div>
             <CardContent className="p-6">
               <div className="text-gray-800">
-                <h2 className="text-2xl font-bold mb-2 text-gray-900">{currentProfile.name}, {currentProfile.age}</h2>
-                <p className="text-gray-700 mb-4">{currentProfile.bio}</p>
+                <h2 className="text-2xl font-bold mb-1 text-gray-900">
+                  {currentProfile.name}, {currentProfile.age}
+                </h2>
+                
+                <div className="flex items-center gap-2 mb-3 text-gray-600">
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm">{currentProfile.currentCity}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+                  <div className="bg-blue-100 rounded-lg p-2 text-center border border-blue-200">
+                    <div className="font-medium text-blue-800">Orientation</div>
+                    <div className="text-blue-600 capitalize">{currentProfile.sexualOrientation}</div>
+                  </div>
+                  <div className="bg-green-100 rounded-lg p-2 text-center border border-green-200">
+                    <div className="font-medium text-green-800">Looking for</div>
+                    <div className="text-green-600 capitalize">{currentProfile.datingPreference}</div>
+                  </div>
+                </div>
+
+                <p className="text-gray-700 mb-4 text-sm leading-relaxed">{currentProfile.bio}</p>
                 
                 <div className="bg-purple-100 rounded-lg p-4 mb-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Star className="h-5 w-5 text-yellow-500" />
-                    <span className="text-gray-900 font-semibold">Match Score: {currentProfile.matchScore}%</span>
+                    <span className="text-gray-900 font-semibold">Cosmic Match</span>
                   </div>
-                  <p className="text-gray-700 text-sm">{currentProfile.compatibility}</p>
+                  <p className="text-gray-700 text-sm">Your stars align beautifully! Based on location and preferences compatibility.</p>
                 </div>
               </div>
             </CardContent>

@@ -133,6 +133,7 @@ export type Database = {
         Row: {
           bio: string | null
           created_at: string | null
+          current_city: string | null
           current_location_lat: number | null
           current_location_lng: number | null
           date_of_birth: string
@@ -152,6 +153,7 @@ export type Database = {
         Insert: {
           bio?: string | null
           created_at?: string | null
+          current_city?: string | null
           current_location_lat?: number | null
           current_location_lng?: number | null
           date_of_birth: string
@@ -171,6 +173,7 @@ export type Database = {
         Update: {
           bio?: string | null
           created_at?: string | null
+          current_city?: string | null
           current_location_lat?: number | null
           current_location_lng?: number | null
           date_of_birth?: string

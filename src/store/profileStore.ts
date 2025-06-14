@@ -13,6 +13,7 @@ interface Profile {
   longitude?: number;
   currentLocationLat?: number;
   currentLocationLng?: number;
+  current_city?: string;
   sexualOrientation?: string;
   datingPreference?: string;
   bio?: string;
@@ -54,6 +55,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       if (data.longitude !== undefined) dbData.longitude = data.longitude;
       if (data.currentLocationLat !== undefined) dbData.current_location_lat = data.currentLocationLat;
       if (data.currentLocationLng !== undefined) dbData.current_location_lng = data.currentLocationLng;
+      if (data.current_city !== undefined) dbData.current_city = data.current_city;
       if (data.sexualOrientation !== undefined && data.sexualOrientation !== null) dbData.sexual_orientation = data.sexualOrientation;
       if (data.datingPreference !== undefined && data.datingPreference !== null) dbData.dating_preference = data.datingPreference;
       if (data.bio !== undefined) dbData.bio = data.bio;
@@ -99,6 +101,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         longitude: data.longitude,
         currentLocationLat: data.current_location_lat,
         currentLocationLng: data.current_location_lng,
+        current_city: data.current_city,
         sexualOrientation: data.sexual_orientation,
         datingPreference: data.dating_preference,
         bio: data.bio,
