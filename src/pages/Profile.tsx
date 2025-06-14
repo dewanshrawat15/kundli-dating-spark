@@ -1,8 +1,7 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Edit, LogOut, Star } from "lucide-react";
+import { ArrowLeft, Edit, LogOut, Star, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useProfileStore } from "@/store/profileStore";
 
@@ -107,11 +106,20 @@ const Profile = () => {
 
         <div className="space-y-3">
           <Button
+            onClick={() => navigate("/account-settings")}
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Account Settings
+          </Button>
+          
+          <Button
             onClick={() => navigate("/onboarding")}
-            className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+            variant="outline"
+            className="w-full border-purple-400 text-purple-300 hover:bg-purple-400 hover:text-white"
           >
             <Edit className="h-4 w-4 mr-2" />
-            Edit Profile
+            Edit Profile Details
           </Button>
           
           <Button

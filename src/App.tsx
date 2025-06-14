@@ -13,6 +13,7 @@ import Home from "./pages/Home";
 import Matches from "./pages/Matches";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => {
             <Route path="/matches" element={<Matches />} />
             <Route path="/chat/:chatId?" element={<Chat />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/account-settings" element={<AccountSettings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
