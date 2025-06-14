@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -41,7 +40,6 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
 
       // Map camelCase fields to snake_case for database
       const dbData: any = {
-        id: user.id,
         updated_at: new Date().toISOString(),
       };
 
@@ -64,7 +62,8 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
 
       const { error } = await supabase
         .from('profiles')
-        .upsert(dbData);
+        .update(dbData)
+        .eq('id', user.id);
 
       if (error) throw error;
 
