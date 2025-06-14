@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -113,31 +114,31 @@ const Home = () => {
         </div>
 
         {currentProfile ? (
-          <Card className="bg-white/10 backdrop-blur border-white/20 overflow-hidden">
+          <Card className="bg-white/90 backdrop-blur border-white/20 overflow-hidden shadow-lg">
             <div className="h-96 bg-gradient-to-b from-pink-400/30 to-purple-600/30 flex items-center justify-center">
               <div className="text-6xl">👤</div>
             </div>
             <CardContent className="p-6">
-              <div className="text-white">
-                <h2 className="text-2xl font-bold mb-2">{currentProfile.name}, {currentProfile.age}</h2>
-                <p className="text-purple-200 mb-4">{currentProfile.bio}</p>
+              <div className="text-gray-800">
+                <h2 className="text-2xl font-bold mb-2 text-gray-900">{currentProfile.name}, {currentProfile.age}</h2>
+                <p className="text-gray-700 mb-4">{currentProfile.bio}</p>
                 
-                <div className="bg-white/10 rounded-lg p-4 mb-4">
+                <div className="bg-purple-100 rounded-lg p-4 mb-4 border border-purple-200">
                   <div className="flex items-center gap-2 mb-2">
-                    <Star className="h-5 w-5 text-yellow-400" />
-                    <span className="text-white font-semibold">Match Score: {currentProfile.matchScore}%</span>
+                    <Star className="h-5 w-5 text-yellow-500" />
+                    <span className="text-gray-900 font-semibold">Match Score: {currentProfile.matchScore}%</span>
                   </div>
-                  <p className="text-purple-200 text-sm">{currentProfile.compatibility}</p>
+                  <p className="text-gray-700 text-sm">{currentProfile.compatibility}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-white/10 backdrop-blur border-white/20 h-96 flex items-center justify-center">
-            <div className="text-white text-center">
-              <Star className="h-12 w-12 mx-auto mb-4 text-yellow-400" />
-              <p>No more profiles for now</p>
-              <p className="text-purple-200 text-sm">Check back later for new matches!</p>
+          <Card className="bg-white/90 backdrop-blur border-white/20 h-96 flex items-center justify-center shadow-lg">
+            <div className="text-gray-800 text-center">
+              <Star className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
+              <p className="text-gray-900 font-semibold">No more profiles for now</p>
+              <p className="text-gray-600 text-sm">Check back later for new matches!</p>
             </div>
           </Card>
         )}
@@ -146,7 +147,7 @@ const Home = () => {
           <Button
             onClick={handlePass}
             size="lg"
-            className="rounded-full w-16 h-16 bg-red-500 hover:bg-red-600"
+            className="rounded-full w-16 h-16 bg-red-500 hover:bg-red-600 text-white"
             disabled={!currentProfile}
           >
             <X className="h-8 w-8" />
@@ -154,7 +155,7 @@ const Home = () => {
           <Button
             onClick={handleLike}
             size="lg"
-            className="rounded-full w-16 h-16 bg-green-500 hover:bg-green-600"
+            className="rounded-full w-16 h-16 bg-green-500 hover:bg-green-600 text-white"
             disabled={!currentProfile}
           >
             <Heart className="h-8 w-8" />
