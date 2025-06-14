@@ -1,5 +1,5 @@
 
--- Update the get_unseen_profiles function to include birth data
+-- Update the get_unseen_profiles function to include birth data for astrological matching
 CREATE OR REPLACE FUNCTION public.get_unseen_profiles(requesting_user_id uuid, city_filter text DEFAULT NULL::text, limit_count integer DEFAULT 20)
  RETURNS TABLE(id uuid, name text, age integer, bio text, current_city text, sexual_orientation text, dating_preference text, profile_images text[], date_of_birth date, time_of_birth time, place_of_birth text)
  LANGUAGE plpgsql
