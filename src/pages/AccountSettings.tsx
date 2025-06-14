@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faSave, faUpload, faUser } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faSave } from '@fortawesome/free-solid-svg-icons';
 import { useAuthStore } from "@/store/authStore";
 import { useProfileStore } from "@/store/profileStore";
 import { toast } from "@/hooks/use-toast";
+import ProfileImageUpload from "@/components/ProfileImageUpload";
 
 const AccountSettings = () => {
   const navigate = useNavigate();
@@ -65,17 +66,6 @@ const AccountSettings = () => {
     }
   };
 
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // For now, we'll show a toast indicating the feature is coming soon
-      toast({
-        title: "Photo Upload",
-        description: "Photo upload feature coming soon!",
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       <div className="flex items-center gap-4 p-4 text-white">
@@ -97,24 +87,7 @@ const AccountSettings = () => {
             <CardTitle className="text-white">Profile Photo</CardTitle>
           </CardHeader>
           <CardContent className="text-center">
-            <div className="w-24 h-24 bg-gradient-to-b from-pink-400/30 to-purple-600/30 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
-              <FontAwesomeIcon icon={faUser} className="h-12 w-12 text-white" />
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoUpload}
-              className="hidden"
-              id="photo-upload"
-            />
-            <Label htmlFor="photo-upload">
-              <Button variant="outline" className="border-white/30 text-white hover:bg-white/20" asChild>
-                <span className="cursor-pointer">
-                  <FontAwesomeIcon icon={faUpload} className="h-4 w-4 mr-2" />
-                  Upload Photo
-                </span>
-              </Button>
-            </Label>
+            <ProfileImageUpload size="lg" />
           </CardContent>
         </Card>
 
