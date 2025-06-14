@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Upload, User } from "lucide-react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft, faSave, faUpload, faUser } from '@fortawesome/free-solid-svg-icons';
 import { useAuthStore } from "@/store/authStore";
 import { useProfileStore } from "@/store/profileStore";
 import { toast } from "@/hooks/use-toast";
@@ -76,20 +77,20 @@ const AccountSettings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-      <div className="max-w-md mx-auto">
-        <div className="flex items-center gap-4 mb-6 pt-8">
-          <Button
-            onClick={() => navigate("/profile")}
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-white/20"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold text-white">Account Settings</h1>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      <div className="flex items-center gap-4 p-4 text-white">
+        <Button
+          onClick={() => navigate("/profile")}
+          variant="ghost"
+          size="sm"
+          className="text-white hover:bg-white/20"
+        >
+          <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4" />
+        </Button>
+        <h1 className="text-xl font-bold">Account Settings</h1>
+      </div>
 
+      <div className="px-4 pb-8">
         {/* Profile Photo Section */}
         <Card className="bg-white/10 backdrop-blur border-white/20 mb-6">
           <CardHeader>
@@ -97,7 +98,7 @@ const AccountSettings = () => {
           </CardHeader>
           <CardContent className="text-center">
             <div className="w-24 h-24 bg-gradient-to-b from-pink-400/30 to-purple-600/30 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
-              👤
+              <FontAwesomeIcon icon={faUser} className="h-12 w-12 text-white" />
             </div>
             <input
               type="file"
@@ -109,7 +110,7 @@ const AccountSettings = () => {
             <Label htmlFor="photo-upload">
               <Button variant="outline" className="border-white/30 text-white hover:bg-white/20" asChild>
                 <span className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" />
+                  <FontAwesomeIcon icon={faUpload} className="h-4 w-4 mr-2" />
                   Upload Photo
                 </span>
               </Button>
@@ -204,7 +205,7 @@ const AccountSettings = () => {
           disabled={isLoading}
           className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
         >
-          <Save className="h-4 w-4 mr-2" />
+          <FontAwesomeIcon icon={faSave} className="h-4 w-4 mr-2" />
           {isLoading ? "Saving..." : "Save Changes"}
         </Button>
       </div>

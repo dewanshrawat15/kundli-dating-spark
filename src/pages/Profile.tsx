@@ -1,7 +1,9 @@
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Edit, LogOut, Star, Settings } from "lucide-react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft, faEdit, faSignOutAlt, faStar, faCog, faUser } from '@fortawesome/free-solid-svg-icons';
 import { useAuthStore } from "@/store/authStore";
 import { useProfileStore } from "@/store/profileStore";
 
@@ -31,24 +33,24 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-      <div className="max-w-md mx-auto">
-        <div className="flex items-center gap-4 mb-6 pt-8">
-          <Button
-            onClick={() => navigate("/home")}
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-white/20"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold text-white">Profile</h1>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      <div className="flex items-center gap-4 p-4 text-white">
+        <Button
+          onClick={() => navigate("/home")}
+          variant="ghost"
+          size="sm"
+          className="text-white hover:bg-white/20"
+        >
+          <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4" />
+        </Button>
+        <h1 className="text-2xl font-bold">Profile</h1>
+      </div>
 
+      <div className="px-4 pb-8">
         <Card className="bg-white/10 backdrop-blur border-white/20 mb-6">
           <CardContent className="p-6 text-center">
             <div className="w-24 h-24 bg-gradient-to-b from-pink-400/30 to-purple-600/30 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
-              👤
+              <FontAwesomeIcon icon={faUser} className="h-12 w-12 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">{profileData.name}, {profileData.age}</h2>
             <p className="text-purple-200 mb-4">{profileData.bio}</p>
@@ -59,7 +61,7 @@ const Profile = () => {
         <Card className="bg-white/10 backdrop-blur border-white/20 mb-6">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-400" />
+              <FontAwesomeIcon icon={faStar} className="h-5 w-5 text-yellow-400" />
               Kundli Details
             </CardTitle>
           </CardHeader>
@@ -109,7 +111,7 @@ const Profile = () => {
             onClick={() => navigate("/account-settings")}
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
           >
-            <Settings className="h-4 w-4 mr-2" />
+            <FontAwesomeIcon icon={faCog} className="h-4 w-4 mr-2" />
             Account Settings
           </Button>
           
@@ -118,7 +120,7 @@ const Profile = () => {
             variant="outline"
             className="w-full border-purple-400 text-purple-300 hover:bg-purple-400 hover:text-white"
           >
-            <Edit className="h-4 w-4 mr-2" />
+            <FontAwesomeIcon icon={faEdit} className="h-4 w-4 mr-2" />
             Edit Profile Details
           </Button>
           
@@ -127,7 +129,7 @@ const Profile = () => {
             variant="outline"
             className="w-full border-red-400 text-red-400 hover:bg-red-400 hover:text-white"
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <FontAwesomeIcon icon={faSignOutAlt} className="h-4 w-4 mr-2" />
             Sign Out
           </Button>
         </div>

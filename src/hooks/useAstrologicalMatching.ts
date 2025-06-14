@@ -1,317 +1,265 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
+import { supabase } from '@/integrations/supabase/client';
 
-interface RankedProfile {
+interface ProfileData {
   id: string;
   name: string;
   age: number;
   bio: string;
+  current_city: string;
+  sexual_orientation: string;
+  dating_preference: string;
+  profile_images: string[];
+  date_of_birth: string;
+  time_of_birth: string;
+  place_of_birth: string;
+}
+
+interface CompatibilityResponse {
+  score: number;
+  description: string;
+}
+
+interface RankedProfile extends ProfileData {
+  compatibilityScore: number;
+  compatibilityDescription: string;
   currentCity: string;
   sexualOrientation: string;
   datingPreference: string;
-  profileImages: string[];
-  compatibilityScore: number;
-  compatibilityDescription: string;
-  isProcessing?: boolean;
-}
-
-interface AstrologicalMatchingState {
-  rankedProfiles: RankedProfile[];
-  currentIndex: number;
-  loading: boolean;
-  error: string | null;
-  hasEnoughUsers: boolean;
-  processingCount: number;
 }
 
 export const useAstrologicalMatching = () => {
-  const [state, setState] = useState<AstrologicalMatchingState>({
-    rankedProfiles: [],
-    currentIndex: 0,
-    loading: true,
-    error: null,
-    hasEnoughUsers: false,
-    processingCount: 0,
-  });
-
   const { user } = useAuthStore();
   const { profile } = useProfileStore();
+  const [profiles, setProfiles] = useState<RankedProfile[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasEnoughUsers, setHasEnoughUsers] = useState(true);
+  const [processingCount, setProcessingCount] = useState(0);
 
-  const recordInteraction = async (targetUserId: string, interactionType: 'viewed' | 'liked' | 'passed') => {
-    if (!user) return;
+  const currentProfile = profiles[currentIndex] || null;
 
-    try {
-      const { error } = await supabase
-        .from('profile_interactions')
-        .insert({
-          user_id: user.id,
-          target_user_id: targetUserId,
-          interaction_type: interactionType
-        });
+  const fetchAndRankProfiles = useCallback(async () => {
+    if (!user?.id || !profile) return;
 
-      if (error) {
-        console.error('Error recording interaction:', error);
-      }
-    } catch (error) {
-      console.error('Error recording interaction:', error);
-    }
-  };
-
-  const calculateCompatibility = async (userProfile: any, targetProfile: any): Promise<{ score: number; description: string }> => {
-    try {
-      const response = await supabase.functions.invoke('astrological-compatibility', {
-        body: {
-          userProfile: {
-            name: userProfile.name,
-            dateOfBirth: userProfile.dateOfBirth,
-            timeOfBirth: userProfile.timeOfBirth,
-            placeOfBirth: userProfile.placeOfBirth,
-          },
-          targetProfile: {
-            name: targetProfile.name,
-            dateOfBirth: targetProfile.date_of_birth,
-            timeOfBirth: targetProfile.time_of_birth,
-            placeOfBirth: targetProfile.place_of_birth,
-          }
-        }
-      });
-
-      if (response.error) {
-        console.error('Edge function error:', response.error);
-        return { score: 0, description: 'Unable to calculate compatibility' };
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error('Error calculating compatibility:', error);
-      return { score: 0, description: 'Unable to calculate compatibility' };
-    }
-  };
-
-  const isCompatibleOrientation = (userOrientation: string, userPreference: string, targetOrientation: string, targetPreference: string) => {
-    if (userPreference === 'everyone' || targetPreference === 'everyone') {
-      return true;
-    }
-    
-    if (userPreference === 'men' && (targetOrientation === 'straight' || targetOrientation === 'gay' || targetOrientation === 'bisexual' || targetOrientation === 'pansexual')) {
-      return targetPreference === 'men' || targetPreference === 'everyone';
-    }
-    
-    if (userPreference === 'women' && (targetOrientation === 'straight' || targetOrientation === 'lesbian' || targetOrientation === 'bisexual' || targetOrientation === 'pansexual')) {
-      return targetPreference === 'women' || targetPreference === 'everyone';
-    }
-    
-    return false;
-  };
-
-  const hasCompleteBirthData = (profile: any) => {
-    return profile.name && 
-           profile.dateOfBirth && 
-           profile.timeOfBirth && 
-           profile.placeOfBirth &&
-           profile.dateOfBirth !== '1990-01-01' &&
-           profile.timeOfBirth !== '12:00:00' &&
-           profile.placeOfBirth !== 'Unknown';
-  };
-
-  const fetchAndRankProfiles = async (offset: number = 0) => {
-    if (!user || !profile || !profile.current_city) {
-      setState(prev => ({ ...prev, loading: false }));
+    // Check if user has complete birth data
+    if (!profile.dateOfBirth || !profile.timeOfBirth || !profile.placeOfBirth) {
+      setError("Complete your astrological profile (birth date, time, and place) to see matches");
       return;
     }
 
-    // Check if current user has complete birth data
-    if (!hasCompleteBirthData(profile)) {
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: 'Please complete your birth details (date, time, and place) in your profile to see astrological matches.' 
-      }));
-      return;
-    }
-
+    setLoading(true);
+    setError(null);
+    
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-
-      // Check total users in city
-      const { data: cityUsers, error: cityError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('current_city', profile.current_city)
-        .eq('is_onboarding_complete', true)
-        .neq('id', user.id);
-
-      if (cityError) throw cityError;
-
-      const cityUserCount = cityUsers?.length || 0;
-      console.log(`Found ${cityUserCount} users in the same city`);
-
-      if (cityUserCount < 10) {
-        setState(prev => ({ ...prev, hasEnoughUsers: false, loading: false }));
-        return;
-      }
-
-      setState(prev => ({ ...prev, hasEnoughUsers: true }));
-
-      // Get 10 unseen profiles
-      const { data: unseenProfiles, error } = await supabase
-        .rpc('get_unseen_profiles', {
+      console.log('Fetching unseen profiles...');
+      
+      // Fetch unseen profiles
+      const { data: unseenProfiles, error: fetchError } = await supabase.rpc(
+        'get_unseen_profiles', 
+        { 
           requesting_user_id: user.id,
           city_filter: profile.current_city,
           limit_count: 10
-        });
+        }
+      );
 
-      if (error) throw error;
+      if (fetchError) {
+        console.error('Error fetching profiles:', fetchError);
+        throw fetchError;
+      }
 
-      // Filter for compatible orientation and complete birth data
-      const compatibleProfiles = unseenProfiles?.filter(match => {
-        const hasCompleteData = match.date_of_birth && 
-                               match.time_of_birth && 
-                               match.place_of_birth &&
-                               match.date_of_birth !== '1990-01-01' &&
-                               match.time_of_birth !== '12:00:00' &&
-                               match.place_of_birth !== 'Unknown';
-        
-        const isCompatible = isCompatibleOrientation(
-          profile.sexualOrientation || '',
-          profile.datingPreference || '',
-          match.sexual_orientation,
-          match.dating_preference
-        );
-
-        return hasCompleteData && isCompatible;
-      }) || [];
-
-      if (compatibleProfiles.length === 0) {
-        setState(prev => ({ 
-          ...prev, 
-          loading: false,
-          error: 'No compatible profiles with complete birth data found. More users are joining daily!'
-        }));
+      if (!unseenProfiles || unseenProfiles.length === 0) {
+        console.log('No unseen profiles found');
+        setHasEnoughUsers(false);
+        setProfiles([]);
         return;
       }
 
-      console.log(`Processing ${compatibleProfiles.length} compatible profiles for astrological ranking`);
-      
-      // Process profiles for compatibility scoring
-      setState(prev => ({ ...prev, processingCount: compatibleProfiles.length }));
+      if (unseenProfiles.length < 10 && profile.current_city) {
+        setHasEnoughUsers(false);
+      }
 
+      console.log(`Found ${unseenProfiles.length} profiles, calculating compatibility...`);
+      setProcessingCount(unseenProfiles.length);
+
+      // Calculate compatibility for each profile
       const rankedProfiles: RankedProfile[] = [];
+      
+      for (const unseenProfile of unseenProfiles) {
+        try {
+          // Check if the profile has complete birth data
+          if (!unseenProfile.date_of_birth || !unseenProfile.time_of_birth || !unseenProfile.place_of_birth) {
+            console.log(`Skipping profile ${unseenProfile.name} - incomplete birth data`);
+            continue;
+          }
 
-      for (let i = 0; i < compatibleProfiles.length; i++) {
-        const match = compatibleProfiles[i];
-        
-        setState(prev => ({ ...prev, processingCount: compatibleProfiles.length - i }));
+          console.log(`Calculating compatibility for ${unseenProfile.name}...`);
+          
+          const { data: compatibilityData, error: compatibilityError } = await supabase.functions.invoke(
+            'astrological-compatibility',
+            {
+              body: {
+                user1: {
+                  name: profile.name,
+                  dateOfBirth: profile.dateOfBirth,
+                  timeOfBirth: profile.timeOfBirth,
+                  placeOfBirth: profile.placeOfBirth
+                },
+                user2: {
+                  name: unseenProfile.name,
+                  dateOfBirth: unseenProfile.date_of_birth,
+                  timeOfBirth: unseenProfile.time_of_birth,
+                  placeOfBirth: unseenProfile.place_of_birth
+                }
+              }
+            }
+          );
 
-        const compatibility = await calculateCompatibility(profile, match);
+          if (compatibilityError) {
+            console.error(`Compatibility error for ${unseenProfile.name}:`, compatibilityError);
+            // Add with default score if API fails
+            rankedProfiles.push({
+              ...unseenProfile,
+              currentCity: unseenProfile.current_city,
+              sexualOrientation: unseenProfile.sexual_orientation,
+              datingPreference: unseenProfile.dating_preference,
+              compatibilityScore: 50,
+              compatibilityDescription: "Unable to calculate astrological compatibility at the moment."
+            });
+            continue;
+          }
 
-        const rankedProfile: RankedProfile = {
-          id: match.id,
-          name: match.name,
-          age: match.age,
-          bio: match.bio || "No bio available",
-          currentCity: match.current_city || "City not specified",
-          sexualOrientation: match.sexual_orientation,
-          datingPreference: match.dating_preference,
-          profileImages: match.profile_images || [],
-          compatibilityScore: compatibility.score,
-          compatibilityDescription: compatibility.description,
-        };
+          const compatibility: CompatibilityResponse = compatibilityData;
+          rankedProfiles.push({
+            ...unseenProfile,
+            currentCity: unseenProfile.current_city,
+            sexualOrientation: unseenProfile.sexual_orientation,
+            datingPreference: unseenProfile.dating_preference,
+            compatibilityScore: compatibility.score,
+            compatibilityDescription: compatibility.description
+          });
 
-        rankedProfiles.push(rankedProfile);
+        } catch (profileError) {
+          console.error(`Error processing profile ${unseenProfile.name}:`, profileError);
+          // Add with default score if processing fails
+          rankedProfiles.push({
+            ...unseenProfile,
+            currentCity: unseenProfile.current_city,
+            sexualOrientation: unseenProfile.sexual_orientation,
+            datingPreference: unseenProfile.dating_preference,
+            compatibilityScore: 50,
+            compatibilityDescription: "Unable to calculate astrological compatibility at the moment."
+          });
+        }
       }
 
       // Sort by compatibility score (highest first)
       rankedProfiles.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
-
-      setState(prev => ({
-        ...prev,
-        rankedProfiles,
-        currentIndex: 0,
-        loading: false,
-        processingCount: 0,
-      }));
-
-      // Record that we've viewed the first profile
-      if (rankedProfiles.length > 0) {
-        await recordInteraction(rankedProfiles[0].id, 'viewed');
-      }
-
-    } catch (error) {
-      console.error('Error fetching and ranking profiles:', error);
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: 'Failed to load astrological matches. Please try again.',
-        processingCount: 0,
-      }));
-    }
-  };
-
-  const handleLike = async () => {
-    const currentProfile = getCurrentProfile();
-    if (!currentProfile) return;
-
-    await recordInteraction(currentProfile.id, 'liked');
-    getNextProfile();
-  };
-
-  const handlePass = async () => {
-    const currentProfile = getCurrentProfile();
-    if (!currentProfile) return;
-
-    await recordInteraction(currentProfile.id, 'passed');
-    getNextProfile();
-  };
-
-  const getNextProfile = async () => {
-    const totalProfiles = state.rankedProfiles.length;
-    const swipedCount = state.currentIndex + 1;
-    const swipedPercentage = (swipedCount / totalProfiles) * 100;
-
-    if (state.currentIndex < totalProfiles - 1) {
-      const nextIndex = state.currentIndex + 1;
-      setState(prev => ({ ...prev, currentIndex: nextIndex }));
       
-      // Record that we've viewed the next profile
-      if (state.rankedProfiles[nextIndex]) {
-        await recordInteraction(state.rankedProfiles[nextIndex].id, 'viewed');
+      console.log(`Ranked ${rankedProfiles.length} profiles by compatibility`);
+      setProfiles(rankedProfiles);
+      setCurrentIndex(0);
+      setProcessingCount(0);
+
+    } catch (err) {
+      console.error('Error in fetchAndRankProfiles:', err);
+      setError("Failed to load profiles. Please try again.");
+      setProcessingCount(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, profile]);
+
+  const handleLike = useCallback(async () => {
+    if (!user?.id || !currentProfile) return;
+
+    try {
+      // Record the interaction
+      const { error } = await supabase
+        .from('profile_interactions')
+        .insert({
+          user_id: user.id,
+          target_user_id: currentProfile.id,
+          interaction_type: 'like'
+        });
+
+      if (error) {
+        console.error('Error recording like:', error);
       }
 
-      // If 70% have been swiped, fetch next batch
-      if (swipedPercentage >= 70) {
-        console.log('70% swiped, fetching next batch...');
+      // Move to next profile
+      setCurrentIndex(prev => prev + 1);
+
+      // Check if we need to fetch more profiles (70% threshold)
+      const remainingProfiles = profiles.length - (currentIndex + 1);
+      const totalProfiles = profiles.length;
+      const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
+
+      if (percentageRemaining <= 30 && totalProfiles >= 10) {
+        console.log('Reached 70% threshold, fetching more profiles...');
         fetchAndRankProfiles();
       }
-    } else {
-      // No more profiles, fetch next batch
-      setState(prev => ({ ...prev, currentIndex: totalProfiles }));
+
+    } catch (err) {
+      console.error('Error handling like:', err);
+    }
+  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles]);
+
+  const handlePass = useCallback(async () => {
+    if (!user?.id || !currentProfile) return;
+
+    try {
+      // Record the interaction
+      const { error } = await supabase
+        .from('profile_interactions')
+        .insert({
+          user_id: user.id,
+          target_user_id: currentProfile.id,
+          interaction_type: 'pass'
+        });
+
+      if (error) {
+        console.error('Error recording pass:', error);
+      }
+
+      // Move to next profile
+      setCurrentIndex(prev => prev + 1);
+
+      // Check if we need to fetch more profiles (70% threshold)
+      const remainingProfiles = profiles.length - (currentIndex + 1);
+      const totalProfiles = profiles.length;
+      const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
+
+      if (percentageRemaining <= 30 && totalProfiles >= 10) {
+        console.log('Reached 70% threshold, fetching more profiles...');
+        fetchAndRankProfiles();
+      }
+
+    } catch (err) {
+      console.error('Error handling pass:', err);
+    }
+  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles]);
+
+  // Initial fetch when component mounts
+  useEffect(() => {
+    if (user?.id && profile) {
       fetchAndRankProfiles();
     }
-  };
-
-  const getCurrentProfile = () => {
-    if (state.currentIndex < state.rankedProfiles.length) {
-      return state.rankedProfiles[state.currentIndex];
-    }
-    return null;
-  };
-
-  useEffect(() => {
-    fetchAndRankProfiles();
-  }, [user, profile]);
+  }, [user?.id, profile, fetchAndRankProfiles]);
 
   return {
-    currentProfile: getCurrentProfile(),
-    loading: state.loading,
-    error: state.error,
-    hasEnoughUsers: state.hasEnoughUsers,
-    processingCount: state.processingCount,
+    currentProfile,
+    loading,
+    error,
+    hasEnoughUsers,
+    processingCount,
     handleLike,
     handlePass,
-    refetch: () => fetchAndRankProfiles(),
+    refetch: fetchAndRankProfiles
   };
 };
