@@ -12,7 +12,7 @@ const Home = () => {
   const [currentProfile, setCurrentProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
-  const { profile } = useProfileStore();
+  const { profile, fetchProfile } = useProfileStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,10 +20,29 @@ const Home = () => {
       navigate("/auth");
       return;
     }
-    
-    if (profile && !profile.isOnboardingComplete) {
-      navigate("/onboarding");
+
+    // Fetch user profile if not already loaded
+    if (!profile && user.id) {
+      fetchProfile(user.id);
       return;
+    }
+    
+    // Check if user needs onboarding (has default values or incomplete onboarding)
+    if (profile) {
+      const hasDefaultValues = 
+        profile.name === "User" || 
+        profile.placeOfBirth === "Unknown" ||
+        !profile.name ||
+        !profile.dateOfBirth ||
+        !profile.timeOfBirth ||
+        !profile.placeOfBirth ||
+        !profile.sexualOrientation ||
+        !profile.datingPreference;
+
+      if (!profile.isOnboardingComplete || hasDefaultValues) {
+        navigate("/onboarding");
+        return;
+      }
     }
 
     // Mock profile for demo
@@ -37,7 +56,7 @@ const Home = () => {
       compatibility: "Your stars align beautifully! Both of you have strong Venus influences."
     });
     setLoading(false);
-  }, [user, profile, navigate]);
+  }, [user, profile, navigate, fetchProfile]);
 
   const handleLike = () => {
     toast({
