@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -73,7 +74,57 @@ export const useAstrologicalMatching = () => {
     return true;
   };
 
-  const fetchAndRankProfiles = useCallback(async () => {
+  const recordInteraction = async (targetUserId: string, interactionType: 'viewed' | 'liked' | 'passed') => {
+    if (!user?.id) {
+      console.error('No user ID available for recording interaction');
+      return false;
+    }
+
+    try {
+      console.log(`Recording ${interactionType} interaction for user ${targetUserId}`);
+      
+      const { data, error } = await supabase
+        .from('profile_interactions')
+        .insert({
+          user_id: user.id,
+          target_user_id: targetUserId,
+          interaction_type: interactionType
+        })
+        .select();
+
+      if (error) {
+        console.error('Error recording interaction:', error);
+        return false;
+      }
+
+      console.log(`Successfully recorded ${interactionType} interaction:`, data);
+      return true;
+    } catch (err) {
+      console.error('Error recording interaction:', err);
+      return false;
+    }
+  };
+
+  const debugProfileInteractions = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data: interactions, error } = await supabase
+        .from('profile_interactions')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching interactions:', error);
+      } else {
+        console.log('Current interactions for user:', interactions);
+      }
+    } catch (err) {
+      console.error('Error debugging interactions:', err);
+    }
+  };
+
+  const fetchAndRankProfiles = useCallback(async (isRefetch = false) => {
     if (!user?.id || !profile || isProcessingRef.current) {
       console.log('Skipping fetch - missing requirements or already processing');
       return;
@@ -85,7 +136,11 @@ export const useAstrologicalMatching = () => {
       return;
     }
 
-    console.log('Starting fetchAndRankProfiles for user:', user.id);
+    console.log('Starting fetchAndRankProfiles for user:', user.id, 'isRefetch:', isRefetch);
+    
+    // Debug current interactions
+    await debugProfileInteractions();
+    
     isProcessingRef.current = true;
     setLoading(true);
     setError(null);
@@ -108,10 +163,15 @@ export const useAstrologicalMatching = () => {
         throw fetchError;
       }
 
+      console.log('Unseen profiles response:', unseenProfiles);
+
       if (!unseenProfiles || unseenProfiles.length === 0) {
         console.log('No unseen profiles found');
         setHasEnoughUsers(false);
-        setProfiles([]);
+        if (isRefetch) {
+          // If this is a refetch and no profiles found, we've reached the end
+          setProfiles([]);
+        }
         return;
       }
 
@@ -149,7 +209,9 @@ export const useAstrologicalMatching = () => {
 
       if (validProfiles.length === 0) {
         console.log('No valid profiles with complete birth data found');
-        setProfiles([]);
+        if (isRefetch) {
+          setProfiles([]);
+        }
         setProcessingCount(0);
         return;
       }
@@ -191,7 +253,7 @@ export const useAstrologicalMatching = () => {
       console.log('Batch compatibility results:', batchResult);
 
       // Create ranked profiles with compatibility data
-      const rankedProfiles: RankedProfile[] = validProfiles.map((unseenProfile, index) => {
+      const rankedProfiles: RankedProfile[] = validProfiles.map((unseenProfile) => {
         const compatibilityResult = batchResult.results?.find(
           result => result.targetName === unseenProfile.name
         );
@@ -210,8 +272,16 @@ export const useAstrologicalMatching = () => {
       rankedProfiles.sort((a, b) => b.compatibilityScore - a.compatibilityScore);
       
       console.log(`Ranked ${rankedProfiles.length} profiles by compatibility`);
-      setProfiles(rankedProfiles);
-      setCurrentIndex(0);
+      
+      if (isRefetch) {
+        // Replace existing profiles with new ones
+        setProfiles(rankedProfiles);
+        setCurrentIndex(0);
+      } else {
+        // Append to existing profiles
+        setProfiles(prev => [...prev, ...rankedProfiles]);
+      }
+      
       setProcessingCount(0);
 
     } catch (err) {
@@ -228,76 +298,80 @@ export const useAstrologicalMatching = () => {
     if (!user?.id || !currentProfile) return;
 
     try {
-      // Record the interaction
-      const { error } = await supabase
-        .from('profile_interactions')
-        .insert({
-          user_id: user.id,
-          target_user_id: currentProfile.id,
-          interaction_type: 'like'
-        });
-
-      if (error) {
-        console.error('Error recording like:', error);
+      console.log('Handling like for profile:', currentProfile.id);
+      
+      // Record the interaction and wait for it to complete
+      const success = await recordInteraction(currentProfile.id, 'liked');
+      
+      if (!success) {
+        console.error('Failed to record like interaction');
+        return;
       }
 
       // Move to next profile
-      setCurrentIndex(prev => prev + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
 
-      // Check if we need to fetch more profiles (70% threshold)
-      const remainingProfiles = profiles.length - (currentIndex + 1);
+      // Check if we need to fetch more profiles (when 70% of profiles are consumed)
+      const remainingProfiles = profiles.length - nextIndex;
       const totalProfiles = profiles.length;
-      const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
+      
+      if (totalProfiles > 0) {
+        const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
+        console.log(`Remaining profiles: ${remainingProfiles}/${totalProfiles} (${percentageRemaining.toFixed(1)}%)`);
 
-      if (percentageRemaining <= 30 && totalProfiles >= 10) {
-        console.log('Reached 70% threshold, fetching more profiles...');
-        fetchAndRankProfiles();
+        if (percentageRemaining <= 30 && hasEnoughUsers) {
+          console.log('Reached 70% threshold, fetching more profiles...');
+          fetchAndRankProfiles(false); // Don't replace, append
+        }
       }
 
     } catch (err) {
       console.error('Error handling like:', err);
     }
-  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles]);
+  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles, hasEnoughUsers]);
 
   const handlePass = useCallback(async () => {
     if (!user?.id || !currentProfile) return;
 
     try {
-      // Record the interaction
-      const { error } = await supabase
-        .from('profile_interactions')
-        .insert({
-          user_id: user.id,
-          target_user_id: currentProfile.id,
-          interaction_type: 'pass'
-        });
-
-      if (error) {
-        console.error('Error recording pass:', error);
+      console.log('Handling pass for profile:', currentProfile.id);
+      
+      // Record the interaction and wait for it to complete
+      const success = await recordInteraction(currentProfile.id, 'passed');
+      
+      if (!success) {
+        console.error('Failed to record pass interaction');
+        return;
       }
 
       // Move to next profile
-      setCurrentIndex(prev => prev + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
 
-      // Check if we need to fetch more profiles (70% threshold)
-      const remainingProfiles = profiles.length - (currentIndex + 1);
+      // Check if we need to fetch more profiles (when 70% of profiles are consumed)
+      const remainingProfiles = profiles.length - nextIndex;
       const totalProfiles = profiles.length;
-      const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
+      
+      if (totalProfiles > 0) {
+        const percentageRemaining = (remainingProfiles / totalProfiles) * 100;
+        console.log(`Remaining profiles: ${remainingProfiles}/${totalProfiles} (${percentageRemaining.toFixed(1)}%)`);
 
-      if (percentageRemaining <= 30 && totalProfiles >= 10) {
-        console.log('Reached 70% threshold, fetching more profiles...');
-        fetchAndRankProfiles();
+        if (percentageRemaining <= 30 && hasEnoughUsers) {
+          console.log('Reached 70% threshold, fetching more profiles...');
+          fetchAndRankProfiles(false); // Don't replace, append
+        }
       }
 
     } catch (err) {
       console.error('Error handling pass:', err);
     }
-  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles]);
+  }, [user?.id, currentProfile, profiles.length, currentIndex, fetchAndRankProfiles, hasEnoughUsers]);
 
   // Initial fetch when component mounts
   useEffect(() => {
-    if (user?.id && profile && !isProcessingRef.current) {
-      fetchAndRankProfiles();
+    if (user?.id && profile && !isProcessingRef.current && profiles.length === 0) {
+      fetchAndRankProfiles(true); // Initial fetch, replace profiles
     }
   }, [user?.id, profile, fetchAndRankProfiles]);
 
@@ -309,6 +383,6 @@ export const useAstrologicalMatching = () => {
     processingCount,
     handleLike,
     handlePass,
-    refetch: fetchAndRankProfiles
+    refetch: () => fetchAndRankProfiles(true)
   };
 };
