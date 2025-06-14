@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -57,7 +58,7 @@ export const useAstrologicalMatching = () => {
     try {
       console.log('Fetching unseen profiles...');
       
-      // Fetch unseen profiles
+      // Fetch unseen profiles - cast the result to our expected type
       const { data: unseenProfiles, error: fetchError } = await supabase.rpc(
         'get_unseen_profiles', 
         { 
@@ -65,7 +66,7 @@ export const useAstrologicalMatching = () => {
           city_filter: profile.current_city,
           limit_count: 10
         }
-      );
+      ) as { data: ProfileData[] | null, error: any };
 
       if (fetchError) {
         console.error('Error fetching profiles:', fetchError);
