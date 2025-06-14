@@ -23,15 +23,35 @@ export const useLocation = () => {
 
   const getCityFromCoordinates = async (latitude: number, longitude: number): Promise<string> => {
     try {
-      // Using a free geocoding service (you might want to use Google Maps API or similar in production)
+      // Using OpenStreetMap Nominatim API which is more reliable and free
       const response = await fetch(
-        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'DatingApp/1.0'
+          }
+        }
       );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch location data');
+      }
+      
       const data = await response.json();
-      return data.city || data.locality || data.principalSubdivision || 'Unknown City';
+      
+      // Extract city from various possible fields
+      const city = data.address?.city || 
+                   data.address?.town || 
+                   data.address?.village || 
+                   data.address?.municipality ||
+                   data.address?.county ||
+                   'Unknown City';
+      
+      return city;
     } catch (error) {
       console.error('Error getting city from coordinates:', error);
-      return 'Unknown City';
+      // Fallback: try a simpler approach with just coordinates
+      return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
     }
   };
 
@@ -120,7 +140,7 @@ export const useLocation = () => {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 15000, // Increased timeout
           maximumAge: 300000, // 5 minutes
         }
       );

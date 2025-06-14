@@ -83,7 +83,9 @@ const Home = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-white text-xl flex items-center gap-3">
-          <Clock className="h-6 w-6 animate-spin" />
+          <Clock className="h-6 w-6 animate-spin" style={{
+            animation: 'spin 1s linear infinite'
+          }} />
           {locationLoading ? 'Getting your location...' : 'Finding your cosmic matches...'}
         </div>
       </div>
@@ -100,7 +102,7 @@ const Home = () => {
             <Button 
               onClick={() => navigate("/matches")}
               variant="outline" 
-              className="border-white/30 text-white hover:bg-white/20"
+              className="border-white/30 text-white hover:bg-white/20 bg-transparent"
             >
               View Matches
             </Button>
@@ -145,7 +147,7 @@ const Home = () => {
           <Button 
             onClick={() => navigate("/matches")}
             variant="outline" 
-            className="border-white/30 text-white hover:bg-white/20"
+            className="border-white/30 text-white hover:bg-white/20 bg-transparent"
           >
             View Matches
           </Button>
