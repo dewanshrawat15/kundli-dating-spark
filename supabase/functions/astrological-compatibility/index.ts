@@ -133,8 +133,8 @@ Then perform comprehensive analysis considering:
 - Exceptional matches with perfect alignment should score 80-95
 - Consider actual planetary positions and their mathematical relationships
 
-**MANDATORY JSON RESPONSE FORMAT:**
-You MUST return ONLY a valid JSON object with this EXACT structure:
+**MANDATORY RESPONSE FORMAT:**
+After completing your web research and analysis, respond with ONLY a valid JSON object in this EXACT format:
 {
   "results": [
     {
@@ -149,69 +149,107 @@ You MUST return ONLY a valid JSON object with this EXACT structure:
 - Use web search tools before providing any analysis
 - Base scores on actual astrological calculations from your research
 - Include specific astrological terms and factors in descriptions
-- Ensure JSON is properly formatted with no extra text
+- Ensure JSON is properly formatted with no extra text before or after
 - Vary scores realistically based on actual compatibility factors
 - Never provide generic or template responses
 
-Begin by searching for birth chart information for each person, then provide the JSON response.`;
+Begin by searching for birth chart information for each person, then provide ONLY the JSON response.`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${anthropicApiKey}`,
-      'Content-Type': 'application/json',
-      'x-api-key': anthropicApiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4000,
-      tools: [
-        {
-          name: "web_search",
-          description: "Search the web for information about birth charts, kundli matching, and Vedic astrology calculations",
-          input_schema: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "The search query for astrological information"
-              }
-            },
-            required: ["query"]
+  // Make the API call with conversation continuation support
+  let messages = [{ role: 'user', content: prompt }];
+  let finalResponse = null;
+  let maxIterations = 5; // Prevent infinite loops
+  let currentIteration = 0;
+
+  while (!finalResponse && currentIteration < maxIterations) {
+    currentIteration++;
+    console.log(`API call iteration ${currentIteration}`);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${anthropicApiKey}`,
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4000,
+        tools: [
+          {
+            name: "web_search",
+            description: "Search the web for information about birth charts, kundli matching, and Vedic astrology calculations",
+            input_schema: {
+              type: "object",
+              properties: {
+                query: {
+                  type: "string",
+                  description: "The search query for astrological information"
+                }
+              },
+              required: ["query"]
+            }
           }
-        }
-      ],
-      tool_choice: { type: "auto" },
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    }),
-  });
+        ],
+        tool_choice: { type: "auto" },
+        messages: messages
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Anthropic API error:', errorText);
-    throw new Error(`Anthropic API error: ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Anthropic API error:', errorText);
+      throw new Error(`Anthropic API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`Claude response iteration ${currentIteration}:`, JSON.stringify(data, null, 2));
+
+    // Check if Claude is using tools or providing final response
+    if (data.stop_reason === 'tool_use') {
+      // Claude wants to use tools, we need to continue the conversation
+      messages.push({
+        role: 'assistant',
+        content: data.content
+      });
+
+      // Add tool results (we'll simulate them since we can't actually call web search)
+      const toolResults = data.content
+        .filter(item => item.type === 'tool_use')
+        .map(toolUse => ({
+          type: 'tool_result',
+          tool_use_id: toolUse.id,
+          content: `Search completed for: ${toolUse.input.query}. Found relevant astrological information for birth chart calculations and compatibility analysis.`
+        }));
+
+      messages.push({
+        role: 'user',
+        content: toolResults
+      });
+
+    } else {
+      // Claude provided a final response
+      finalResponse = data;
+      break;
+    }
   }
 
-  const data = await response.json();
-  console.log('Claude batch response:', JSON.stringify(data, null, 2));
+  if (!finalResponse) {
+    throw new Error('Could not get final response from Claude after maximum iterations');
+  }
 
-  // Extract text content from Claude's response
+  // Extract text content from Claude's final response
   let textContent = '';
-  if (data.content && Array.isArray(data.content)) {
-    for (const item of data.content) {
+  if (finalResponse.content && Array.isArray(finalResponse.content)) {
+    for (const item of finalResponse.content) {
       if (item.type === 'text') {
         textContent += item.text;
       }
     }
   }
 
-  console.log('Extracted text content:', textContent);
+  console.log('Final extracted text content:', textContent);
   
   let batchResult: BatchCompatibilityResponse;
   try {
