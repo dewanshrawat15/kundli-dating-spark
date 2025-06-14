@@ -38,13 +38,31 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Map camelCase fields to snake_case for database
+      const dbData: any = {
+        id: user.id,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Map the fields to database column names
+      if (data.name !== undefined) dbData.name = data.name;
+      if (data.email !== undefined) dbData.email = data.email;
+      if (data.dateOfBirth !== undefined) dbData.date_of_birth = data.dateOfBirth;
+      if (data.timeOfBirth !== undefined) dbData.time_of_birth = data.timeOfBirth;
+      if (data.placeOfBirth !== undefined) dbData.place_of_birth = data.placeOfBirth;
+      if (data.latitude !== undefined) dbData.latitude = data.latitude;
+      if (data.longitude !== undefined) dbData.longitude = data.longitude;
+      if (data.currentLocationLat !== undefined) dbData.current_location_lat = data.currentLocationLat;
+      if (data.currentLocationLng !== undefined) dbData.current_location_lng = data.currentLocationLng;
+      if (data.sexualOrientation !== undefined) dbData.sexual_orientation = data.sexualOrientation;
+      if (data.datingPreference !== undefined) dbData.dating_preference = data.datingPreference;
+      if (data.bio !== undefined) dbData.bio = data.bio;
+      if (data.profileImages !== undefined) dbData.profile_images = data.profileImages;
+      if (data.isOnboardingComplete !== undefined) dbData.is_onboarding_complete = data.isOnboardingComplete;
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          ...data,
-          updated_at: new Date().toISOString(),
-        });
+        .upsert(dbData);
 
       if (error) throw error;
 
@@ -69,8 +87,27 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
 
       if (error && error.code !== 'PGRST116') throw error;
 
+      // Map snake_case fields from database to camelCase for the app
+      const mappedProfile: Profile = data ? {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        dateOfBirth: data.date_of_birth,
+        timeOfBirth: data.time_of_birth,
+        placeOfBirth: data.place_of_birth,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        currentLocationLat: data.current_location_lat,
+        currentLocationLng: data.current_location_lng,
+        sexualOrientation: data.sexual_orientation,
+        datingPreference: data.dating_preference,
+        bio: data.bio,
+        profileImages: data.profile_images,
+        isOnboardingComplete: data.is_onboarding_complete,
+      } : { id: userId };
+
       set({ 
-        profile: data || { id: userId },
+        profile: mappedProfile,
         isLoading: false 
       });
     } catch (error) {
