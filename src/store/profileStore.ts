@@ -44,18 +44,18 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         updated_at: new Date().toISOString(),
       };
 
-      // Map the fields to database column names
-      if (data.name !== undefined) dbData.name = data.name;
-      if (data.email !== undefined) dbData.email = data.email;
-      if (data.dateOfBirth !== undefined) dbData.date_of_birth = data.dateOfBirth;
-      if (data.timeOfBirth !== undefined) dbData.time_of_birth = data.timeOfBirth;
-      if (data.placeOfBirth !== undefined) dbData.place_of_birth = data.placeOfBirth;
+      // Map the fields to database column names, ensuring no null values for required fields
+      if (data.name !== undefined && data.name !== null) dbData.name = data.name;
+      if (data.email !== undefined && data.email !== null) dbData.email = data.email;
+      if (data.dateOfBirth !== undefined && data.dateOfBirth !== null) dbData.date_of_birth = data.dateOfBirth;
+      if (data.timeOfBirth !== undefined && data.timeOfBirth !== null) dbData.time_of_birth = data.timeOfBirth;
+      if (data.placeOfBirth !== undefined && data.placeOfBirth !== null) dbData.place_of_birth = data.placeOfBirth;
       if (data.latitude !== undefined) dbData.latitude = data.latitude;
       if (data.longitude !== undefined) dbData.longitude = data.longitude;
       if (data.currentLocationLat !== undefined) dbData.current_location_lat = data.currentLocationLat;
       if (data.currentLocationLng !== undefined) dbData.current_location_lng = data.currentLocationLng;
-      if (data.sexualOrientation !== undefined) dbData.sexual_orientation = data.sexualOrientation;
-      if (data.datingPreference !== undefined) dbData.dating_preference = data.datingPreference;
+      if (data.sexualOrientation !== undefined && data.sexualOrientation !== null) dbData.sexual_orientation = data.sexualOrientation;
+      if (data.datingPreference !== undefined && data.datingPreference !== null) dbData.dating_preference = data.datingPreference;
       if (data.bio !== undefined) dbData.bio = data.bio;
       if (data.profileImages !== undefined) dbData.profile_images = data.profileImages;
       if (data.isOnboardingComplete !== undefined) dbData.is_onboarding_complete = data.isOnboardingComplete;

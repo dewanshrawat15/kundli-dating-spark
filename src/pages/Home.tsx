@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -30,9 +29,9 @@ const Home = () => {
     // Check if user needs onboarding (has default values or incomplete onboarding)
     if (profile) {
       const hasDefaultValues = 
+        !profile.name || 
         profile.name === "User" || 
         profile.placeOfBirth === "Unknown" ||
-        !profile.name ||
         !profile.dateOfBirth ||
         !profile.timeOfBirth ||
         !profile.placeOfBirth ||
