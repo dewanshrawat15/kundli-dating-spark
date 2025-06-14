@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 const Home = () => {
   const { user } = useAuthStore();
   const { profile, fetchProfile } = useProfileStore();
-  const { currentProfile, loading, hasEnoughUsers, getNextProfile } = useProfileMatching();
+  const { currentProfile, loading, hasEnoughUsers, handleLike, handlePass } = useProfileMatching();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,18 +46,18 @@ const Home = () => {
     }
   }, [user, profile, navigate, fetchProfile]);
 
-  const handleLike = () => {
+  const onLike = async () => {
     if (!currentProfile) return;
     
+    await handleLike();
     toast({
       title: "It's a match! ⭐",
       description: `You and ${currentProfile.name} have matched based on your compatibility!`,
     });
-    getNextProfile();
   };
 
-  const handlePass = () => {
-    getNextProfile();
+  const onPass = async () => {
+    await handlePass();
   };
 
   if (loading) {
@@ -181,7 +181,7 @@ const Home = () => {
 
         <div className="flex justify-center gap-6 mt-6">
           <Button
-            onClick={handlePass}
+            onClick={onPass}
             size="lg"
             className="rounded-full w-16 h-16 bg-red-500 hover:bg-red-600 text-white"
             disabled={!currentProfile}
@@ -189,7 +189,7 @@ const Home = () => {
             <X className="h-8 w-8" />
           </Button>
           <Button
-            onClick={handleLike}
+            onClick={onLike}
             size="lg"
             className="rounded-full w-16 h-16 bg-green-500 hover:bg-green-600 text-white"
             disabled={!currentProfile}

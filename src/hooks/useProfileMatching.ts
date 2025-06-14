@@ -23,21 +23,7 @@ export const useProfileMatching = () => {
   const { user } = useAuthStore();
   const { profile } = useProfileStore();
 
-  const calculateAge = (dateOfBirth: string) => {
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    
-    return age;
-  };
-
   const isCompatibleOrientation = (userOrientation: string, userPreference: string, targetOrientation: string, targetPreference: string) => {
-    // Check if users are compatible based on sexual orientation and dating preferences
     if (userPreference === 'everyone' || targetPreference === 'everyone') {
       return true;
     }
@@ -53,8 +39,28 @@ export const useProfileMatching = () => {
     return false;
   };
 
+  const recordInteraction = async (targetUserId: string, interactionType: 'viewed' | 'liked' | 'passed') => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profile_interactions')
+        .insert({
+          user_id: user.id,
+          target_user_id: targetUserId,
+          interaction_type: interactionType
+        });
+
+      if (error) {
+        console.error('Error recording interaction:', error);
+      }
+    } catch (error) {
+      console.error('Error recording interaction:', error);
+    }
+  };
+
   const fetchPotentialMatches = async () => {
-    if (!user || !profile || !profile.currentLocationLat || !profile.currentLocationLng) {
+    if (!user || !profile || !profile.current_city) {
       setLoading(false);
       return;
     }
@@ -64,7 +70,7 @@ export const useProfileMatching = () => {
       const { data: cityUsers, error: cityError } = await supabase
         .from('profiles')
         .select('id')
-        .eq('current_city', profile.current_city || '')
+        .eq('current_city', profile.current_city)
         .eq('is_onboarding_complete', true)
         .neq('id', user.id);
 
@@ -81,32 +87,31 @@ export const useProfileMatching = () => {
 
       setHasEnoughUsers(true);
 
-      // Fetch potential matches from the same city
-      const { data: matches, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('current_city', profile.current_city || '')
-        .eq('is_onboarding_complete', true)
-        .neq('id', user.id)
-        .limit(20);
+      // Use the database function to get unseen profiles
+      const { data: unseenProfiles, error } = await supabase
+        .rpc('get_unseen_profiles', {
+          requesting_user_id: user.id,
+          city_filter: profile.current_city,
+          limit_count: 20
+        });
 
       if (error) throw error;
 
       // Filter matches based on sexual orientation and dating preferences
-      const compatibleMatches = matches?.filter(match => {
+      const compatibleMatches = unseenProfiles?.filter(match => {
         return isCompatibleOrientation(
-          profile.sexualOrientation,
-          profile.datingPreference,
+          profile.sexualOrientation || '',
+          profile.datingPreference || '',
           match.sexual_orientation,
           match.dating_preference
         );
       }) || [];
 
-      // Transform the data
+      // Transform the data to match our interface
       const transformedMatches: MatchProfile[] = compatibleMatches.map(match => ({
         id: match.id,
         name: match.name,
-        age: calculateAge(match.date_of_birth),
+        age: match.age,
         bio: match.bio || "No bio available",
         currentCity: match.current_city || "City not specified",
         sexualOrientation: match.sexual_orientation,
@@ -116,6 +121,11 @@ export const useProfileMatching = () => {
 
       setPotentialMatches(transformedMatches);
       setCurrentIndex(0);
+
+      // Record that we've viewed the first profile
+      if (transformedMatches.length > 0) {
+        await recordInteraction(transformedMatches[0].id, 'viewed');
+      }
     } catch (error) {
       console.error('Error fetching potential matches:', error);
     } finally {
@@ -123,9 +133,31 @@ export const useProfileMatching = () => {
     }
   };
 
-  const getNextProfile = () => {
+  const handleLike = async () => {
+    const currentProfile = getCurrentProfile();
+    if (!currentProfile) return;
+
+    await recordInteraction(currentProfile.id, 'liked');
+    getNextProfile();
+  };
+
+  const handlePass = async () => {
+    const currentProfile = getCurrentProfile();
+    if (!currentProfile) return;
+
+    await recordInteraction(currentProfile.id, 'passed');
+    getNextProfile();
+  };
+
+  const getNextProfile = async () => {
     if (currentIndex < potentialMatches.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      
+      // Record that we've viewed the next profile
+      if (potentialMatches[nextIndex]) {
+        await recordInteraction(potentialMatches[nextIndex].id, 'viewed');
+      }
     } else {
       // No more profiles, could fetch more or show end state
       setCurrentIndex(potentialMatches.length);
@@ -147,7 +179,8 @@ export const useProfileMatching = () => {
     currentProfile: getCurrentProfile(),
     loading,
     hasEnoughUsers,
-    getNextProfile,
+    handleLike,
+    handlePass,
     refetch: fetchPotentialMatches
   };
 };

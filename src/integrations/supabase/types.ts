@@ -129,6 +129,45 @@ export type Database = {
           },
         ]
       }
+      profile_interactions: {
+        Row: {
+          created_at: string
+          id: string
+          interaction_type: string
+          target_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interaction_type: string
+          target_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          target_user_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_interactions_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_interactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           bio: string | null
@@ -141,6 +180,7 @@ export type Database = {
           email: string | null
           id: string
           is_onboarding_complete: boolean | null
+          last_shown_at: string | null
           latitude: number | null
           longitude: number | null
           name: string
@@ -161,6 +201,7 @@ export type Database = {
           email?: string | null
           id: string
           is_onboarding_complete?: boolean | null
+          last_shown_at?: string | null
           latitude?: number | null
           longitude?: number | null
           name: string
@@ -181,6 +222,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_onboarding_complete?: boolean | null
+          last_shown_at?: string | null
           latitude?: number | null
           longitude?: number | null
           name?: string
@@ -197,7 +239,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_unseen_profiles: {
+        Args: {
+          requesting_user_id: string
+          city_filter?: string
+          limit_count?: number
+        }
+        Returns: {
+          id: string
+          name: string
+          age: number
+          bio: string
+          current_city: string
+          sexual_orientation: string
+          dating_preference: string
+          profile_images: string[]
+        }[]
+      }
     }
     Enums: {
       dating_preference: "men" | "women" | "everyone"
