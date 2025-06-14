@@ -7,12 +7,14 @@ import { Heart, X, Star, MapPin, Users, Clock } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useProfileStore } from "@/store/profileStore";
 import { useProfileMatching } from "@/hooks/useProfileMatching";
+import { useLocation } from "@/hooks/useLocation";
 import { toast } from "@/hooks/use-toast";
 
 const Home = () => {
   const { user } = useAuthStore();
   const { profile, fetchProfile } = useProfileStore();
   const { currentProfile, loading, hasEnoughUsers, handleLike, handlePass } = useProfileMatching();
+  const { isLoading: locationLoading, error: locationError, updateUserLocation } = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,8 +45,25 @@ const Home = () => {
         navigate("/onboarding");
         return;
       }
+
+      // If user doesn't have current_city, request location
+      if (!profile.current_city) {
+        console.log('Profile loaded but no current_city - requesting location');
+        updateUserLocation();
+      }
     }
-  }, [user, profile, navigate, fetchProfile]);
+  }, [user, profile, navigate, fetchProfile, updateUserLocation]);
+
+  // Show location error if any
+  useEffect(() => {
+    if (locationError) {
+      toast({
+        title: "Location Error",
+        description: locationError,
+        variant: "destructive",
+      });
+    }
+  }, [locationError]);
 
   const onLike = async () => {
     if (!currentProfile) return;
@@ -60,12 +79,12 @@ const Home = () => {
     await handlePass();
   };
 
-  if (loading) {
+  if (loading || locationLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-white text-xl flex items-center gap-3">
           <Clock className="h-6 w-6 animate-spin" />
-          Finding your cosmic matches...
+          {locationLoading ? 'Getting your location...' : 'Finding your cosmic matches...'}
         </div>
       </div>
     );
@@ -99,7 +118,9 @@ const Home = () => {
               <div className="bg-purple-100 rounded-lg p-4 mb-4 border border-purple-200">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <MapPin className="h-5 w-5 text-purple-600" />
-                  <span className="text-purple-800 font-medium">Your Area</span>
+                  <span className="text-purple-800 font-medium">
+                    {profile?.current_city || 'Your Area'}
+                  </span>
                 </div>
                 <p className="text-purple-700 text-sm">
                   We need at least 10 users in your city to start showing matches. 
