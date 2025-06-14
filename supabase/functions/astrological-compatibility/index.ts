@@ -32,7 +32,46 @@ serve(async (req) => {
   }
 
   try {
-    const { userProfile, targetProfile }: CompatibilityRequest = await req.json();
+    const requestBody = await req.json();
+    console.log('Raw request body:', JSON.stringify(requestBody, null, 2));
+
+    // Handle both old (user1/user2) and new (userProfile/targetProfile) parameter formats
+    let userProfile: BirthData;
+    let targetProfile: BirthData;
+
+    if (requestBody.userProfile && requestBody.targetProfile) {
+      userProfile = requestBody.userProfile;
+      targetProfile = requestBody.targetProfile;
+    } else if (requestBody.user1 && requestBody.user2) {
+      userProfile = requestBody.user1;
+      targetProfile = requestBody.user2;
+    } else {
+      console.error('Invalid request format. Expected userProfile/targetProfile or user1/user2');
+      throw new Error('Invalid request format. Expected userProfile/targetProfile or user1/user2');
+    }
+
+    // Validate that both profiles have required fields
+    const validateProfile = (profile: any, profileName: string): BirthData => {
+      if (!profile) {
+        throw new Error(`${profileName} is missing`);
+      }
+      if (!profile.name || typeof profile.name !== 'string') {
+        throw new Error(`${profileName} name is missing or invalid`);
+      }
+      if (!profile.dateOfBirth || typeof profile.dateOfBirth !== 'string') {
+        throw new Error(`${profileName} dateOfBirth is missing or invalid`);
+      }
+      if (!profile.timeOfBirth || typeof profile.timeOfBirth !== 'string') {
+        throw new Error(`${profileName} timeOfBirth is missing or invalid`);
+      }
+      if (!profile.placeOfBirth || typeof profile.placeOfBirth !== 'string') {
+        throw new Error(`${profileName} placeOfBirth is missing or invalid`);
+      }
+      return profile as BirthData;
+    };
+
+    userProfile = validateProfile(userProfile, 'userProfile');
+    targetProfile = validateProfile(targetProfile, 'targetProfile');
 
     console.log('Processing compatibility for:', userProfile.name, 'and', targetProfile.name);
 

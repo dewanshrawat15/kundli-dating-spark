@@ -254,6 +254,9 @@ export type Database = {
           sexual_orientation: string
           dating_preference: string
           profile_images: string[]
+          date_of_birth: string
+          time_of_birth: string
+          place_of_birth: string
         }[]
       }
     }

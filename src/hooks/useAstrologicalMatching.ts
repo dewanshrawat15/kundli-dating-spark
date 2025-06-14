@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,11 +39,37 @@ export const useAstrologicalMatching = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasEnoughUsers, setHasEnoughUsers] = useState(true);
   const [processingCount, setProcessingCount] = useState(0);
+  
+  // Cache to prevent duplicate API calls
+  const compatibilityCache = useRef<Map<string, CompatibilityResponse>>(new Map());
+  const isProcessingRef = useRef(false);
 
   const currentProfile = profiles[currentIndex] || null;
 
+  const validateProfileData = (profile: any, profileName: string) => {
+    if (!profile) {
+      throw new Error(`${profileName} is missing`);
+    }
+    if (!profile.name || typeof profile.name !== 'string') {
+      throw new Error(`${profileName} name is missing or invalid: ${JSON.stringify(profile)}`);
+    }
+    if (!profile.dateOfBirth && !profile.date_of_birth) {
+      throw new Error(`${profileName} dateOfBirth is missing`);
+    }
+    if (!profile.timeOfBirth && !profile.time_of_birth) {
+      throw new Error(`${profileName} timeOfBirth is missing`);
+    }
+    if (!profile.placeOfBirth && !profile.place_of_birth) {
+      throw new Error(`${profileName} placeOfBirth is missing`);
+    }
+    return true;
+  };
+
   const fetchAndRankProfiles = useCallback(async () => {
-    if (!user?.id || !profile) return;
+    if (!user?.id || !profile || isProcessingRef.current) {
+      console.log('Skipping fetch - missing requirements or already processing');
+      return;
+    }
 
     // Check if user has complete birth data
     if (!profile.dateOfBirth || !profile.timeOfBirth || !profile.placeOfBirth) {
@@ -52,6 +77,8 @@ export const useAstrologicalMatching = () => {
       return;
     }
 
+    console.log('Starting fetchAndRankProfiles for user:', user.id);
+    isProcessingRef.current = true;
     setLoading(true);
     setError(null);
     
@@ -87,6 +114,15 @@ export const useAstrologicalMatching = () => {
       console.log(`Found ${unseenProfiles.length} profiles, calculating compatibility...`);
       setProcessingCount(unseenProfiles.length);
 
+      // Validate current user profile before processing
+      try {
+        validateProfileData(profile, 'Current user profile');
+      } catch (validationError) {
+        console.error('Current user profile validation failed:', validationError);
+        setError(`Profile validation error: ${validationError.message}`);
+        return;
+      }
+
       // Calculate compatibility for each profile
       const rankedProfiles: RankedProfile[] = [];
       
@@ -98,43 +134,62 @@ export const useAstrologicalMatching = () => {
             continue;
           }
 
-          console.log(`Calculating compatibility for ${unseenProfile.name}...`);
-          
-          const { data: compatibilityData, error: compatibilityError } = await supabase.functions.invoke(
-            'astrological-compatibility',
-            {
-              body: {
-                user1: {
-                  name: profile.name,
-                  dateOfBirth: profile.dateOfBirth,
-                  timeOfBirth: profile.timeOfBirth,
-                  placeOfBirth: profile.placeOfBirth
-                },
-                user2: {
-                  name: unseenProfile.name,
-                  dateOfBirth: unseenProfile.date_of_birth,
-                  timeOfBirth: unseenProfile.time_of_birth,
-                  placeOfBirth: unseenProfile.place_of_birth
-                }
-              }
-            }
-          );
-
-          if (compatibilityError) {
-            console.error(`Compatibility error for ${unseenProfile.name}:`, compatibilityError);
-            // Add with default score if API fails
-            rankedProfiles.push({
-              ...unseenProfile,
-              currentCity: unseenProfile.current_city,
-              sexualOrientation: unseenProfile.sexual_orientation,
-              datingPreference: unseenProfile.dating_preference,
-              compatibilityScore: 50,
-              compatibilityDescription: "Unable to calculate astrological compatibility at the moment."
-            });
+          // Validate target profile data
+          try {
+            validateProfileData(unseenProfile, `Target profile ${unseenProfile.name}`);
+          } catch (validationError) {
+            console.error(`Validation failed for ${unseenProfile.name}:`, validationError);
             continue;
           }
 
-          const compatibility: CompatibilityResponse = compatibilityData;
+          // Create cache key to avoid duplicate API calls
+          const cacheKey = `${user.id}-${unseenProfile.id}`;
+          let compatibility: CompatibilityResponse;
+
+          if (compatibilityCache.current.has(cacheKey)) {
+            console.log(`Using cached compatibility for ${unseenProfile.name}`);
+            compatibility = compatibilityCache.current.get(cacheKey)!;
+          } else {
+            console.log(`Calculating compatibility for ${unseenProfile.name}...`);
+            
+            const requestPayload = {
+              userProfile: {
+                name: profile.name,
+                dateOfBirth: profile.dateOfBirth,
+                timeOfBirth: profile.timeOfBirth,
+                placeOfBirth: profile.placeOfBirth
+              },
+              targetProfile: {
+                name: unseenProfile.name,
+                dateOfBirth: unseenProfile.date_of_birth,
+                timeOfBirth: unseenProfile.time_of_birth,
+                placeOfBirth: unseenProfile.place_of_birth
+              }
+            };
+
+            console.log(`API payload for ${unseenProfile.name}:`, JSON.stringify(requestPayload, null, 2));
+
+            const { data: compatibilityData, error: compatibilityError } = await supabase.functions.invoke(
+              'astrological-compatibility',
+              {
+                body: requestPayload
+              }
+            );
+
+            if (compatibilityError) {
+              console.error(`Compatibility error for ${unseenProfile.name}:`, compatibilityError);
+              // Add with default score if API fails
+              compatibility = {
+                score: 50,
+                description: "Unable to calculate astrological compatibility at the moment."
+              };
+            } else {
+              compatibility = compatibilityData as CompatibilityResponse;
+              // Cache the result
+              compatibilityCache.current.set(cacheKey, compatibility);
+            }
+          }
+
           rankedProfiles.push({
             ...unseenProfile,
             currentCity: unseenProfile.current_city,
@@ -172,6 +227,7 @@ export const useAstrologicalMatching = () => {
       setProcessingCount(0);
     } finally {
       setLoading(false);
+      isProcessingRef.current = false;
     }
   }, [user?.id, profile]);
 
@@ -247,7 +303,7 @@ export const useAstrologicalMatching = () => {
 
   // Initial fetch when component mounts
   useEffect(() => {
-    if (user?.id && profile) {
+    if (user?.id && profile && !isProcessingRef.current) {
       fetchAndRankProfiles();
     }
   }, [user?.id, profile, fetchAndRankProfiles]);
