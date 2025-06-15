@@ -1,8 +1,8 @@
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMapMarkerAlt, faStar, faUser } from '@fortawesome/free-solid-svg-icons';
+import { faMapMarkerAlt, faStar } from '@fortawesome/free-solid-svg-icons';
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import ImageCarousel from "../ImageCarousel";
 
 interface ProfileCardProps {
   profile: {
@@ -19,25 +19,12 @@ interface ProfileCardProps {
 }
 
 const ProfileCard = ({ profile }: ProfileCardProps) => {
-  const primaryImage = profile.profile_images?.[0];
-
   return (
     <Card className="bg-white/95 backdrop-blur border-white/20 overflow-hidden shadow-xl mx-4">
-      <div className="h-80 bg-gradient-to-b from-pink-400/30 to-purple-600/30 flex items-center justify-center">
-        {primaryImage ? (
-          <img 
-            src={primaryImage} 
-            alt={profile.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Avatar className="w-32 h-32">
-            <AvatarFallback className="bg-gradient-to-b from-pink-400/30 to-purple-600/30">
-              <FontAwesomeIcon icon={faUser} className="h-16 w-16 text-white" />
-            </AvatarFallback>
-          </Avatar>
-        )}
-      </div>
+      <ImageCarousel 
+        images={profile.profile_images || []} 
+        className="h-80"
+      />
       <CardContent className="p-4">
         <div className="text-gray-800">
           <h2 className="text-2xl font-bold mb-2 text-gray-900">
