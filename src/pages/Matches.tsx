@@ -9,6 +9,15 @@ const Matches = () => {
   const navigate = useNavigate();
   const { matches, loading, error, refetch } = useMatches();
 
+  const handleChatNavigation = (match: any) => {
+    if (match.chatRoomId) {
+      navigate(`/chat/${match.chatRoomId}`);
+    } else {
+      // Fallback to user ID if no chat room found
+      navigate(`/chat/${match.id}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
@@ -129,7 +138,7 @@ const Matches = () => {
                     )}
                   </div>
                   <Button
-                    onClick={() => navigate(`/chat/${match.id}`)}
+                    onClick={() => handleChatNavigation(match)}
                     size="sm"
                     className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
                   >

@@ -12,6 +12,7 @@ interface Match {
   lastMessage?: string;
   timeAgo?: string;
   profileImages?: string[];
+  chatRoomId?: string;
 }
 
 export const useMatches = () => {
@@ -27,58 +28,60 @@ export const useMatches = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch users that the current user has liked
-      const { data: likedInteractions, error: likedError } = await supabase
-        .from('profile_interactions')
-        .select('target_user_id')
+      // Fetch matches from the matches table
+      const { data: matchesData, error: matchesError } = await supabase
+        .from('matches')
+        .select('target_user_id, created_at')
         .eq('user_id', user.id)
-        .eq('interaction_type', 'liked');
+        .eq('status', 'matched');
 
-      if (likedError) throw likedError;
+      if (matchesError) throw matchesError;
 
-      if (!likedInteractions || likedInteractions.length === 0) {
+      if (!matchesData || matchesData.length === 0) {
         setMatches([]);
         return;
       }
 
-      const likedUserIds = likedInteractions.map(interaction => interaction.target_user_id);
+      const matchedUserIds = matchesData.map(match => match.target_user_id);
 
-      // Fetch users who have also liked the current user back (mutual likes)
-      const { data: mutualLikes, error: mutualError } = await supabase
-        .from('profile_interactions')
-        .select('user_id')
-        .in('user_id', likedUserIds)
-        .eq('target_user_id', user.id)
-        .eq('interaction_type', 'liked');
-
-      if (mutualError) throw mutualError;
-
-      const mutualLikeUserIds = mutualLikes?.map(like => like.user_id) || [];
-
-      if (mutualLikeUserIds.length === 0) {
-        setMatches([]);
-        return;
-      }
-
-      // Fetch profile data for mutual matches
+      // Fetch profile data for matched users
       const { data: matchProfiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, name, date_of_birth, bio, profile_images')
-        .in('id', mutualLikeUserIds);
+        .in('id', matchedUserIds);
 
       if (profileError) throw profileError;
 
+      // Fetch chat rooms for these matches
+      const { data: chatRooms, error: chatRoomError } = await supabase
+        .from('chat_rooms')
+        .select('id, user1_id, user2_id')
+        .or(`and(user1_id.eq.${user.id},user2_id.in.(${matchedUserIds.join(',')})),and(user2_id.eq.${user.id},user1_id.in.(${matchedUserIds.join(',')}))`);
+
+      if (chatRoomError) {
+        console.error('Error fetching chat rooms:', chatRoomError);
+      }
+
       // Transform the data to match our interface
-      const transformedMatches: Match[] = matchProfiles?.map(profile => ({
-        id: profile.id,
-        name: profile.name,
-        age: profile.date_of_birth ? new Date().getFullYear() - new Date(profile.date_of_birth).getFullYear() : 0,
-        matchScore: Math.floor(Math.random() * 30) + 70, // Random score between 70-100 for now
-        bio: profile.bio || "No bio available",
-        profileImages: profile.profile_images || [],
-        lastMessage: "You matched! Start a conversation 💫",
-        timeAgo: "New match"
-      })) || [];
+      const transformedMatches: Match[] = matchProfiles?.map(profile => {
+        // Find the corresponding chat room
+        const chatRoom = chatRooms?.find(room => 
+          (room.user1_id === user.id && room.user2_id === profile.id) ||
+          (room.user2_id === user.id && room.user1_id === profile.id)
+        );
+
+        return {
+          id: profile.id,
+          name: profile.name,
+          age: profile.date_of_birth ? new Date().getFullYear() - new Date(profile.date_of_birth).getFullYear() : 0,
+          matchScore: Math.floor(Math.random() * 30) + 70, // Random score between 70-100 for now
+          bio: profile.bio || "No bio available",
+          profileImages: profile.profile_images || [],
+          lastMessage: "You matched! Start a conversation 💫",
+          timeAgo: "New match",
+          chatRoomId: chatRoom?.id
+        };
+      }) || [];
 
       setMatches(transformedMatches);
 
