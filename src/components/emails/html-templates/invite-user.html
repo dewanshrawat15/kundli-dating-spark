@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You've been invited to discover your cosmic match!</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0f0f23;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .container {
+      margin: 0 auto;
+      padding: 20px;
+      max-width: 600px;
+      background-color: #1a1a2e;
+      border-radius: 12px;
+      border: 1px solid #4c1d95;
+    }
+    .header {
+      text-align: center;
+      padding: 20px 0;
+      background: linear-gradient(135deg, #ec4899, #7c3aed, #3b82f6);
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #ffffff;
+      font-size: 28px;
+      font-weight: bold;
+      margin: 0;
+      text-align: center;
+    }
+    .content {
+      padding: 0 20px;
+    }
+    .greeting {
+      color: #f472b6;
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 20px 0;
+    }
+    .text {
+      color: #e2e8f0;
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 16px 0;
+    }
+    .highlight {
+      color: #f472b6;
+      font-weight: bold;
+    }
+    .list-item {
+      color: #e2e8f0;
+      font-size: 14px;
+      margin: 8px 0;
+      padding-left: 10px;
+    }
+    .highlight-box {
+      background-color: #7c3aed;
+      color: #ffffff;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .button-container {
+      text-align: center;
+      margin: 30px 0;
+    }
+    .button {
+      background: linear-gradient(135deg, #ec4899, #f472b6);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: bold;
+      text-decoration: none;
+      text-align: center;
+      display: inline-block;
+      padding: 14px 28px;
+      border: 2px solid #f472b6;
+    }
+    .small-text {
+      color: #94a3b8;
+      font-size: 14px;
+      margin: 20px 0 10px 0;
+    }
+    .link-text {
+      color: #60a5fa;
+      font-size: 14px;
+      word-break: break-all;
+      margin: 0 0 20px 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 30px 20px 20px;
+      border-top: 1px solid #374151;
+      margin-top: 30px;
+    }
+    .footer-text {
+      color: #9ca3af;
+      font-size: 14px;
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌟 You're Invited! 🌟</h1>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">Hello future star! ✨</p>
+      
+      <p class="text">
+        <strong class="highlight">{{ .InviterName }}</strong> believes the universe 
+        has something special in store for you! They've invited you to join our 
+        cosmic dating community where the stars guide you to your perfect match.
+      </p>
+      
+      <p class="text">
+        Our astrological dating platform uses the ancient wisdom of the stars 
+        to help you discover deeply compatible connections. No more random swiping - 
+        let celestial science guide your heart!
+      </p>
+      
+      <div class="button-container">
+        <a href="{{ .InviteURL }}" class="button">
+          🌙 Accept Cosmic Invitation 🌙
+        </a>
+      </div>
+      
+      <p class="text">What awaits you in the cosmic realm:</p>
+      
+      <p class="list-item">🔮 Personalized astrological compatibility scores</p>
+      <p class="list-item">⭐ Matches based on your birth chart analysis</p>
+      <p class="list-item">💫 Deep insights into relationship dynamics</p>
+      <p class="list-item">🌌 A community of spiritually-minded souls</p>
+      
+      <p class="highlight-box">
+        <strong>Special Invitation Bonus:</strong> Join now and get premium 
+        astrological insights for your first month! 🎁
+      </p>
+      
+      <p class="small-text">
+        If the button doesn't work, copy and paste this link into your browser:
+      </p>
+      <p class="link-text">{{ .InviteURL }}</p>
+    </div>
+    
+    <div class="footer">
+      <p class="footer-text">The stars are aligning for your arrival! 🌠</p>
+      <p class="footer-text">
+        With celestial wishes,<br>
+        The Astro Dating Community
+      </p>
+    </div>
+  </div>
+</body>
+</html>
