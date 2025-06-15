@@ -109,19 +109,23 @@ export const useAstrologicalMatching = () => {
 
       console.log(`Successfully recorded ${interactionType} interaction:`, data);
 
-      // If this is a 'liked' interaction, store compatibility data in matches table
+      // If this is a 'liked' interaction, store compatibility data in profiles_match table
       if (interactionType === 'liked' && currentProfile) {
         console.log('Storing compatibility data for liked interaction');
         
-        // First check if a match record exists (created by the trigger)
+        // Order user IDs consistently (smaller UUID first)
+        const orderedUserA = user.id < targetUserId ? user.id : targetUserId;
+        const orderedUserB = user.id < targetUserId ? targetUserId : user.id;
+        
+        // First check if a match record already exists
         const { data: existingMatch, error: matchCheckError } = await supabase
-          .from('matches')
+          .from('profiles_match')
           .select('id, match_score, compatibility_description')
-          .eq('user_id', user.id)
-          .eq('target_user_id', targetUserId)
-          .single();
+          .eq('user_a_id', orderedUserA)
+          .eq('user_b_id', orderedUserB)
+          .maybeSingle();
 
-        if (matchCheckError && matchCheckError.code !== 'PGRST116') {
+        if (matchCheckError) {
           console.error('Error checking for existing match:', matchCheckError);
           return true; // Still return true as the interaction was recorded
         }
@@ -129,7 +133,7 @@ export const useAstrologicalMatching = () => {
         // If match exists and doesn't have compatibility data, update it
         if (existingMatch && (!existingMatch.match_score || !existingMatch.compatibility_description)) {
           const { error: updateError } = await supabase
-            .from('matches')
+            .from('profiles_match')
             .update({
               match_score: currentProfile.compatibilityScore,
               compatibility_description: currentProfile.compatibilityDescription
