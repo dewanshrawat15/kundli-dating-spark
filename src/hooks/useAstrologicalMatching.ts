@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -45,7 +46,8 @@ export const useAstrologicalMatching = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasEnoughUsers, setHasEnoughUsers] = useState(true);
+  // Temporarily disable hasEnoughUsers check - always true unless 0 profiles
+  const hasEnoughUsers = profiles.length > 0;
   const [processingCount, setProcessingCount] = useState(0);
   
   // Critical: Single source of truth for preventing concurrent requests
@@ -176,17 +178,7 @@ export const useAstrologicalMatching = () => {
         // First check if we have enough users
         const userCount = await checkUserCount();
         
-        if (userCount < 10) {
-          console.log(`📭 Not enough users (${userCount}/10) - skipping astrological matching`);
-          setHasEnoughUsers(false);
-          if (isRefetch && mountedRef.current) {
-            setProfiles([]);
-          }
-          return;
-        }
-
-        setHasEnoughUsers(true);
-        
+        // Temporarily always proceed regardless of user count
         console.log(`📡 Fetching unseen profiles for fetch #${fetchId}`);
         
         // Fetch unseen profiles
@@ -214,7 +206,6 @@ export const useAstrologicalMatching = () => {
 
         if (!unseenProfiles || unseenProfiles.length === 0) {
           console.log(`📭 No unseen profiles found in fetch #${fetchId}`);
-          setHasEnoughUsers(false);
           if (isRefetch && mountedRef.current) {
             setProfiles([]);
           }
@@ -266,7 +257,7 @@ export const useAstrologicalMatching = () => {
           return;
         }
 
-        // Only call astrological compatibility if we have enough profiles
+        // Call astrological compatibility for all profiles regardless of count
         console.log(`🔮 Calling astrological compatibility for ${validProfiles.length} profiles`);
 
         // Prepare batch compatibility request
