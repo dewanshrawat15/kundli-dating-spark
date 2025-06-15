@@ -28,16 +28,24 @@ export const useMatches = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch matches from the new profiles_match table
+      console.log('Fetching matches for user:', user.id);
+
+      // Fetch matches from the profiles_match table
       const { data: matchesData, error: matchesError } = await supabase
         .from('profiles_match')
-        .select('user_a_id, user_b_id, match_score, compatibility_description, created_at')
+        .select('id, user_a_id, user_b_id, match_score, compatibility_description, created_at')
         .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
         .eq('status', 'active');
 
-      if (matchesError) throw matchesError;
+      if (matchesError) {
+        console.error('Error fetching matches:', matchesError);
+        throw matchesError;
+      }
+
+      console.log('Matches data:', matchesData);
 
       if (!matchesData || matchesData.length === 0) {
+        console.log('No matches found');
         setMatches([]);
         return;
       }
@@ -47,23 +55,42 @@ export const useMatches = () => {
         match.user_a_id === user.id ? match.user_b_id : match.user_a_id
       );
 
+      console.log('Matched user IDs:', matchedUserIds);
+
       // Fetch profile data for matched users
       const { data: matchProfiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, name, date_of_birth, bio, profile_images')
         .in('id', matchedUserIds);
 
-      if (profileError) throw profileError;
-
-      // Fetch chat rooms for these matches
-      const { data: chatRooms, error: chatRoomError } = await supabase
-        .from('chat_rooms')
-        .select('id, user1_id, user2_id')
-        .or(`and(user1_id.eq.${user.id},user2_id.in.(${matchedUserIds.join(',')})),and(user2_id.eq.${user.id},user1_id.in.(${matchedUserIds.join(',')}))`);
-
-      if (chatRoomError) {
-        console.error('Error fetching chat rooms:', chatRoomError);
+      if (profileError) {
+        console.error('Error fetching profiles:', profileError);
+        throw profileError;
       }
+
+      console.log('Match profiles:', matchProfiles);
+
+      // Fetch chat rooms for these matches (if any exist)
+      let chatRooms = [];
+      if (matchedUserIds.length > 0) {
+        const chatRoomQueries = matchedUserIds.map(otherUserId => {
+          const orderedIds = [user.id, otherUserId].sort();
+          return `(user1_id.eq.${orderedIds[0]},user2_id.eq.${orderedIds[1]})`;
+        });
+
+        const { data: chatRoomsData, error: chatRoomError } = await supabase
+          .from('chat_rooms')
+          .select('id, user1_id, user2_id')
+          .or(chatRoomQueries.join(','));
+
+        if (chatRoomError) {
+          console.error('Error fetching chat rooms:', chatRoomError);
+        } else {
+          chatRooms = chatRoomsData || [];
+        }
+      }
+
+      console.log('Chat rooms:', chatRooms);
 
       // Transform the data to match our interface
       const transformedMatches: Match[] = matchProfiles?.map(profile => {
@@ -91,6 +118,7 @@ export const useMatches = () => {
         };
       }) || [];
 
+      console.log('Transformed matches:', transformedMatches);
       setMatches(transformedMatches);
 
     } catch (err) {
