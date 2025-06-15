@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuthStore } from "./store/authStore";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -33,13 +34,62 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/matches" element={<Matches />} />
-            <Route path="/chat/:chatId?" element={<Chat />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/account-settings" element={<AccountSettings />} />
+            <Route 
+              path="/auth" 
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <Auth />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/onboarding" 
+              element={
+                <ProtectedRoute requireAuth={true} requireOnboarding={false}>
+                  <Onboarding />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/home" 
+              element={
+                <ProtectedRoute requireAuth={true} requireOnboarding={true}>
+                  <Home />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/matches" 
+              element={
+                <ProtectedRoute requireAuth={true} requireOnboarding={true}>
+                  <Matches />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/chat/:chatId?" 
+              element={
+                <ProtectedRoute requireAuth={true} requireOnboarding={true}>
+                  <Chat />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute requireAuth={true} requireOnboarding={true}>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/account-settings" 
+              element={
+                <ProtectedRoute requireAuth={true} requireOnboarding={true}>
+                  <AccountSettings />
+                </ProtectedRoute>
+              } 
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

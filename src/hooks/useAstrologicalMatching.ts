@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -115,6 +114,38 @@ export const useAstrologicalMatching = () => {
     }
   };
 
+  const checkUserCount = async (): Promise<number> => {
+    if (!user?.id || !profile || !mountedRef.current) {
+      return 0;
+    }
+
+    try {
+      console.log('🔍 Checking user count before fetching profiles');
+      
+      const { data: unseenProfiles, error } = await supabase.rpc(
+        'get_unseen_profiles', 
+        { 
+          requesting_user_id: user.id,
+          city_filter: profile.current_city,
+          limit_count: 20
+        }
+      ) as { data: ProfileData[] | null, error: any };
+
+      if (error) {
+        console.error('Error checking user count:', error);
+        return 0;
+      }
+
+      const userCount = unseenProfiles?.length || 0;
+      console.log(`📊 Found ${userCount} unseen users`);
+      
+      return userCount;
+    } catch (err) {
+      console.error('Error in checkUserCount:', err);
+      return 0;
+    }
+  };
+
   const fetchAndRankProfiles = useCallback(async (isRefetch = false): Promise<void> => {
     // CRITICAL: Only allow one active request at a time
     if (activeRequestRef.current) {
@@ -142,6 +173,20 @@ export const useAstrologicalMatching = () => {
 
     const fetchPromise = (async () => {
       try {
+        // First check if we have enough users
+        const userCount = await checkUserCount();
+        
+        if (userCount < 10) {
+          console.log(`📭 Not enough users (${userCount}/10) - skipping astrological matching`);
+          setHasEnoughUsers(false);
+          if (isRefetch && mountedRef.current) {
+            setProfiles([]);
+          }
+          return;
+        }
+
+        setHasEnoughUsers(true);
+        
         console.log(`📡 Fetching unseen profiles for fetch #${fetchId}`);
         
         // Fetch unseen profiles
@@ -174,10 +219,6 @@ export const useAstrologicalMatching = () => {
             setProfiles([]);
           }
           return;
-        }
-
-        if (unseenProfiles.length < 10 && profile.current_city) {
-          setHasEnoughUsers(false);
         }
 
         console.log(`🧮 Processing ${unseenProfiles.length} profiles for compatibility in fetch #${fetchId}`);
@@ -224,6 +265,9 @@ export const useAstrologicalMatching = () => {
           console.log(`⚠️ Fetch #${fetchId} cancelled before compatibility call`);
           return;
         }
+
+        // Only call astrological compatibility if we have enough profiles
+        console.log(`🔮 Calling astrological compatibility for ${validProfiles.length} profiles`);
 
         // Prepare batch compatibility request
         const userProfileData = {

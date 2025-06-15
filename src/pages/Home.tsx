@@ -15,7 +15,7 @@ import EmptyState from "@/components/mobile/EmptyState";
 
 const Home = () => {
   const { user } = useAuthStore();
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile } = useProfileStore();
   const { 
     currentProfile, 
     loading, 
@@ -30,40 +30,12 @@ const Home = () => {
   const locationUpdateAttempted = useRef(false);
 
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-      return;
+    if (profile && !profile.current_city && !locationUpdateAttempted.current) {
+      console.log('Profile loaded but no current_city - requesting location');
+      locationUpdateAttempted.current = true;
+      updateUserLocation();
     }
-
-    if (!profile && user.id) {
-      fetchProfile(user.id);
-      return;
-    }
-    
-    if (profile) {
-      const hasDefaultValues = 
-        !profile.name || 
-        profile.name === "User" || 
-        profile.placeOfBirth === "Unknown" ||
-        !profile.dateOfBirth ||
-        !profile.timeOfBirth ||
-        !profile.placeOfBirth ||
-        !profile.sexualOrientation ||
-        !profile.datingPreference;
-
-      if (!profile.isOnboardingComplete || hasDefaultValues) {
-        navigate("/onboarding");
-        return;
-      }
-
-      // Only request location once per session if not set
-      if (!profile.current_city && !locationUpdateAttempted.current) {
-        console.log('Profile loaded but no current_city - requesting location');
-        locationUpdateAttempted.current = true;
-        updateUserLocation();
-      }
-    }
-  }, [user, profile, navigate, fetchProfile, updateUserLocation]);
+  }, [profile, updateUserLocation]);
 
   useEffect(() => {
     if (locationError) {
