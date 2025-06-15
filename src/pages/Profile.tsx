@@ -82,7 +82,7 @@ const Profile = () => {
                 </h2>
                 <div className="flex items-center gap-2 text-purple-200">
                   <MapPin className="h-4 w-4" />
-                  <span>{profile.currentCity || "Location not set"}</span>
+                  <span>{profile.current_city || "Location not set"}</span>
                 </div>
               </div>
               
