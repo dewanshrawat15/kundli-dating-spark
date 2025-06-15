@@ -28,12 +28,12 @@ export const useMatches = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch matches from the matches table
+      // Fetch matches from the new profiles_match table
       const { data: matchesData, error: matchesError } = await supabase
-        .from('matches')
-        .select('target_user_id, created_at')
-        .eq('user_id', user.id)
-        .eq('status', 'matched');
+        .from('profiles_match')
+        .select('user_a_id, user_b_id, match_score, compatibility_description, created_at')
+        .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
+        .eq('status', 'active');
 
       if (matchesError) throw matchesError;
 
@@ -42,7 +42,10 @@ export const useMatches = () => {
         return;
       }
 
-      const matchedUserIds = matchesData.map(match => match.target_user_id);
+      // Get the other user's ID from each match
+      const matchedUserIds = matchesData.map(match => 
+        match.user_a_id === user.id ? match.user_b_id : match.user_a_id
+      );
 
       // Fetch profile data for matched users
       const { data: matchProfiles, error: profileError } = await supabase
@@ -64,6 +67,11 @@ export const useMatches = () => {
 
       // Transform the data to match our interface
       const transformedMatches: Match[] = matchProfiles?.map(profile => {
+        // Find the corresponding match data
+        const matchData = matchesData.find(match => 
+          match.user_a_id === profile.id || match.user_b_id === profile.id
+        );
+
         // Find the corresponding chat room
         const chatRoom = chatRooms?.find(room => 
           (room.user1_id === user.id && room.user2_id === profile.id) ||
@@ -74,7 +82,7 @@ export const useMatches = () => {
           id: profile.id,
           name: profile.name,
           age: profile.date_of_birth ? new Date().getFullYear() - new Date(profile.date_of_birth).getFullYear() : 0,
-          matchScore: Math.floor(Math.random() * 30) + 70, // Random score between 70-100 for now
+          matchScore: matchData?.match_score || 85,
           bio: profile.bio || "No bio available",
           profileImages: profile.profile_images || [],
           lastMessage: "You matched! Start a conversation 💫",

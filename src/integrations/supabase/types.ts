@@ -13,20 +13,26 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          user1_id: string | null
-          user2_id: string | null
+          is_active: boolean | null
+          last_message_at: string | null
+          user1_id: string
+          user2_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          user1_id?: string | null
-          user2_id?: string | null
+          is_active?: boolean | null
+          last_message_at?: string | null
+          user1_id: string
+          user2_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          user1_id?: string | null
-          user2_id?: string | null
+          is_active?: boolean | null
+          last_message_at?: string | null
+          user1_id?: string
+          user2_id?: string
         }
         Relationships: [
           {
@@ -113,13 +119,6 @@ export type Database = {
           sender_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "messages_chat_room_id_fkey"
-            columns: ["chat_room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
@@ -233,6 +232,54 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      profiles_match: {
+        Row: {
+          compatibility_description: string | null
+          created_at: string | null
+          id: string
+          match_score: number
+          status: string | null
+          updated_at: string | null
+          user_a_id: string
+          user_b_id: string
+        }
+        Insert: {
+          compatibility_description?: string | null
+          created_at?: string | null
+          id?: string
+          match_score?: number
+          status?: string | null
+          updated_at?: string | null
+          user_a_id: string
+          user_b_id: string
+        }
+        Update: {
+          compatibility_description?: string | null
+          created_at?: string | null
+          id?: string
+          match_score?: number
+          status?: string | null
+          updated_at?: string | null
+          user_a_id?: string
+          user_b_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_match_user_a_id_fkey"
+            columns: ["user_a_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_match_user_b_id_fkey"
+            columns: ["user_b_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
