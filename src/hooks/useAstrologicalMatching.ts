@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
@@ -109,6 +108,42 @@ export const useAstrologicalMatching = () => {
       }
 
       console.log(`Successfully recorded ${interactionType} interaction:`, data);
+
+      // If this is a 'liked' interaction, store compatibility data in matches table
+      if (interactionType === 'liked' && currentProfile) {
+        console.log('Storing compatibility data for liked interaction');
+        
+        // First check if a match record exists (created by the trigger)
+        const { data: existingMatch, error: matchCheckError } = await supabase
+          .from('matches')
+          .select('id, match_score, compatibility_description')
+          .eq('user_id', user.id)
+          .eq('target_user_id', targetUserId)
+          .single();
+
+        if (matchCheckError && matchCheckError.code !== 'PGRST116') {
+          console.error('Error checking for existing match:', matchCheckError);
+          return true; // Still return true as the interaction was recorded
+        }
+
+        // If match exists and doesn't have compatibility data, update it
+        if (existingMatch && (!existingMatch.match_score || !existingMatch.compatibility_description)) {
+          const { error: updateError } = await supabase
+            .from('matches')
+            .update({
+              match_score: currentProfile.compatibilityScore,
+              compatibility_description: currentProfile.compatibilityDescription
+            })
+            .eq('id', existingMatch.id);
+
+          if (updateError) {
+            console.error('Error updating match with compatibility data:', updateError);
+          } else {
+            console.log('Successfully updated match with compatibility data');
+          }
+        }
+      }
+
       return true;
     } catch (err) {
       console.error('Error recording interaction:', err);
